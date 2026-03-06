@@ -385,6 +385,8 @@ SLANG_MAP = {
     "fam":      "family",
     "bro":      "close friend or brother",
     "sis":      "close friend or sister",
+    "good bye":  "goodbye",
+    "bye bye":   "goodbye",
     "peeps":    "people",
     "ppl":      "people",
 

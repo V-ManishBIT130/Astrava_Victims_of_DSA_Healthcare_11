@@ -88,6 +88,12 @@ def get_top_emotion(text):
 
 
 def get_all_scores(text):
+    """Get all 28 emotion scores for a text (no threshold filtering)."""
+    clf = get_classifier()
+    return clf(text)[0]  # list of {"label": str, "score": float} sorted desc
+
+
+def get_all_scores(text):
     """Get raw scores for all 28 labels (no thresholding)."""
     clf = get_classifier()
     return clf(text)[0]

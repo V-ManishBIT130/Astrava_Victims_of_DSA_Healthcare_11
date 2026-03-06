@@ -123,12 +123,27 @@ CRISIS_KEYWORDS = frozenset([
     "slitting my wrists",
 
     # --- Goodbye / farewell messages ---
+    "goodbye",
+    "good bye",
+    "bye bye",
     "goodbye forever",
+    "good bye forever",
     "goodbye world",
+    "good bye world",
     "this is my last message",
     "final goodbye",
     "goodbye everyone",
+    "good bye everyone",
     "farewell",
+
+    # --- Death statements ("i will die", "going to die") ---
+    "i will die",
+    "i am going to die",
+    "going to die",
+    "gonna die",
+    "when i die",
+    "let me die",
+    "time to die",
     "last letter",
     "suicide note",
     "writing my note",
@@ -890,6 +905,13 @@ CRISIS_PATTERNS = {
         re.compile(r'\blife\s+(is\s+)?not\s+worth\b', re.I),
         re.compile(r'\bready\s+to\s+die\b', re.I),
         re.compile(r'\bwant(ing)?\s+it\s+(all\s+)?to\s+end\b', re.I),
+        # Death-statement patterns ("i will die", "going to die", "when i die")
+        re.compile(r'\bi\s+(will|am\s+going\s+to|am\s+gonna|wanna|gonna)\s+die\b', re.I),
+        re.compile(r'\b(going|gonna)\s+to\s+die\b', re.I),
+        re.compile(r'\bwhen\s+i\s+\w*\s*die\b', re.I),
+        re.compile(r'\blet\s+me\s+die\b', re.I),
+        re.compile(r'\bi\s+(just\s+)?want\s+death\b', re.I),
+        re.compile(r'\btime\s+to\s+die\b', re.I),
     ],
 
     "SELF_HARM": [
@@ -907,12 +929,15 @@ CRISIS_PATTERNS = {
         # Highest severity — ideation has moved to action
         re.compile(r'\bhave\s+a\s+plan\b', re.I),
         re.compile(r'\bplanning\s+to\b.{0,30}(die|end|kill|hurt)', re.I | re.S),
-        re.compile(r'\bgoodbye\s+(letter|note|message)\b', re.I),
-        re.compile(r'\bsaying\s+goodbye\b', re.I),
+        re.compile(r'\bgood\s*bye\s+(letter|note|message)\b', re.I),
+        re.compile(r'\bsaying\s+good\s*bye\b', re.I),
         re.compile(r'\bgiving\s+away\s+(my\s+)?(stuff|things|belongings|possessions)\b', re.I),
         re.compile(r'\bno\s+one\s+will\s+(miss|notice|care)\s+(me|if\s+i)\b', re.I),
         re.compile(r'\bpills?\b.{0,20}\b(take|took|taken|swallow)\b', re.I | re.S),
         re.compile(r'\boverdo(se|sing|sed)?\b', re.I),
+        # Farewell combined with death/crisis context ("goodbye... die", "bye... end")
+        re.compile(r'\b(good\s*bye|bye\s*bye|farewell)\b.{0,40}\b(die|dead|death|end|kill)\b', re.I | re.S),
+        re.compile(r'\b(die|dead|death|end|kill)\b.{0,40}\b(good\s*bye|bye\s*bye|farewell)\b', re.I | re.S),
     ],
 
     "HOPELESSNESS": [

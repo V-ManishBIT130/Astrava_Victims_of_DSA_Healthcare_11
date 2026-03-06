@@ -1,0 +1,29 @@
+===============================================================
+  ASTRAVA — RUN COMMANDS
+  Open 3 terminals. Make sure Ollama is running first.
+===============================================================
+
+──────────────────────────────────────────────────────────────
+ TERMINAL 0 — Ollama (must be running BEFORE starting backend)
+──────────────────────────────────────────────────────────────
+
+ollama serve
+
+
+──────────────────────────────────────────────────────────────
+ TERMINAL 1 — FastAPI backend (port 8080, auto-reload on)
+──────────────────────────────────────────────────────────────
+
+cd "c:\Users\V Manish\Desktop\Astrava_Victims_of_DSA_Healthcare_11" ; .venv\Scripts\activate ; python -m uvicorn python.api:app --host 0.0.0.0 --port 8080 --reload
+
+
+──────────────────────────────────────────────────────────────
+ TERMINAL 2 — React / Vite frontend (port 5174, auto-reload on)
+──────────────────────────────────────────────────────────────
+
+cd "c:\Users\V Manish\Desktop\Astrava_Victims_of_DSA_Healthcare_11\frontend" ; npm run dev
+
+
+===============================================================
+ Once all are running, open:  http://localhost:5174
+===============================================================

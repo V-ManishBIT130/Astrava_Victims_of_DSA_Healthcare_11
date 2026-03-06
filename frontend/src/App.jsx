@@ -465,7 +465,8 @@ function LandingPage({ onStart }) {
           <svg width="20" height="32" viewBox="0 0 20 32" fill="none">
             <rect x="1" y="1" width="18" height="30" rx="9" stroke={C.muted} strokeWidth="1.5" />
             <motion.circle
-              cx="10" cy="10" r="3" fill={C.accent}
+              cx="10" cy={8} r="3" fill={C.accent}
+              initial={{ cy: 8 }}
               animate={{ cy: [8, 18, 8] }}
               transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             />
@@ -727,6 +728,276 @@ function LandingPage({ onStart }) {
 /* ═══════════════════════════════════════════════════════
    CHAT PAGE
    ═══════════════════════════════════════════════════════ */
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// stable session id for this browser tab
+const SESSION_ID = (() => {
+  let id = sessionStorage.getItem('astrava_session');
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('astrava_session', id); }
+  return id;
+})();
+
+/* ════════════════════════════════════════════════════════
+   THERAPIST CARD
+   ════════════════════════════════════════════════════════ */
+function TherapistCard({ onClose, onDone }) {
+  const [step, setStep] = useState('prompt'); // 'prompt' | 'form' | 'done'
+  const [form, setForm] = useState({ name: '', email: '', preference: '', migrate: true });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await fetch(`${API_URL}/api/request-therapist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id:   SESSION_ID,
+          name:         form.name  || null,
+          email:        form.email || null,
+          preference:   form.preference || null,
+          migrate_chat: form.migrate,
+        }),
+      });
+    } catch (_) {}
+    setStep('done');
+    setTimeout(onDone, 5000);
+  };
+
+  const inputStyle = {
+    display: 'block', width: '100%', fontFamily: font.body, fontSize: 14,
+    color: C.heading, background: C.bg, border: `1px solid ${C.border}`,
+    borderRadius: 8, padding: '9px 12px', marginBottom: 10, outline: 'none',
+    boxSizing: 'border-box',
+  };
+  const primaryBtn = {
+    fontFamily: font.body, fontSize: 13, fontWeight: 600,
+    background: C.accent, color: '#fff', border: 'none',
+    borderRadius: 8, padding: '9px 18px', cursor: 'pointer',
+  };
+  const ghostBtn = {
+    fontFamily: font.body, fontSize: 13, fontWeight: 400,
+    background: 'transparent', color: C.muted,
+    border: `1px solid ${C.border}`, borderRadius: 8,
+    padding: '9px 16px', cursor: 'pointer',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        background: C.surface,
+        border: `1px solid ${C.borderLight}`,
+        borderRadius: 16,
+        padding: '20px 24px',
+        marginBottom: 20,
+        fontFamily: font.body,
+      }}
+    >
+      {step === 'prompt' && (
+        <>
+          <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: '0 0 16px' }}>
+            Would you like to connect with a real therapist — online or in person?
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setStep('form')} style={primaryBtn}>Yes, connect me</button>
+            <button onClick={onClose} style={ghostBtn}>Maybe later</button>
+          </div>
+        </>
+      )}
+
+      {step === 'form' && (
+        <>
+          <p style={{ fontSize: 14, fontWeight: 600, color: C.heading, margin: '0 0 14px' }}>
+            A few details to arrange things
+          </p>
+          <input
+            type="text" placeholder="Your name (optional)" value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            style={inputStyle}
+          />
+          <input
+            type="email" placeholder="Email address (optional)" value={form.email}
+            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+            style={inputStyle}
+          />
+          <p style={{ fontFamily: font.mono, fontSize: 11, letterSpacing: '0.06em', color: C.muted, margin: '0 0 8px', textTransform: 'uppercase' }}>Preference</p>
+          {[['online', 'Online'], ['in_person', 'In person'], ['', 'No preference']].map(([val, label]) => (
+            <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer', fontSize: 13, color: C.body }}>
+              <input
+                type="radio" name="th-pref" value={val}
+                checked={form.preference === val}
+                onChange={() => setForm((p) => ({ ...p, preference: val }))}
+                style={{ accentColor: C.accent }}
+              />
+              {label}
+            </label>
+          ))}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.body, cursor: 'pointer', margin: '12px 0 18px' }}>
+            <input
+              type="checkbox" checked={form.migrate}
+              onChange={(e) => setForm((p) => ({ ...p, migrate: e.target.checked }))}
+              style={{ accentColor: C.accent, width: 15, height: 15 }}
+            />
+            Share this conversation with the therapist
+          </label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={handleSubmit} disabled={submitting}
+              style={{ ...primaryBtn, opacity: submitting ? 0.7 : 1, cursor: submitting ? 'default' : 'pointer' }}
+            >
+              {submitting ? 'Sending...' : 'Connect me'}
+            </button>
+            <button onClick={() => setStep('prompt')} style={ghostBtn}>Back</button>
+          </div>
+        </>
+      )}
+
+      {step === 'done' && (
+        <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: 0 }}>
+          Done. We will be in touch{form.email ? ` at ${form.email}` : ''}.
+          {form.migrate ? ' This conversation is ready for the therapist to review.' : ''}
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   CRISIS OVERLAY — blocks chat and shows help
+   ═══════════════════════════════════════════════════════ */
+function CrisisOverlay({ hasLocation, onResume }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(15,23,42,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        style={{
+          background: '#ffffff',
+          borderRadius: 20,
+          maxWidth: 460,
+          width: '100%',
+          padding: '36px 32px 28px',
+          boxShadow: '0 32px 64px rgba(0,0,0,0.25)',
+          textAlign: 'center',
+        }}
+      >
+        {/* Red alert icon */}
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%',
+          background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px',
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+
+        <h2 style={{
+          fontFamily: font.serif, fontSize: 26, fontWeight: 400,
+          color: '#0f172a', margin: '0 0 10px',
+        }}>
+          We are here for you
+        </h2>
+
+        <p style={{
+          fontFamily: font.body, fontSize: 15, color: '#475569',
+          lineHeight: 1.65, margin: '0 0 20px',
+        }}>
+          It sounds like you are going through something really difficult right now.
+          You do not have to face this alone.
+        </p>
+
+        {hasLocation && (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10,
+            padding: '10px 16px', marginBottom: 16,
+            fontFamily: font.body, fontSize: 13, color: '#15803d',
+            display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Your location has been shared with a healthcare worker
+          </div>
+        )}
+
+        {/* Helplines */}
+        <div style={{
+          background: '#f8fafc', borderRadius: 12, padding: '16px 20px',
+          marginBottom: 20, textAlign: 'left',
+        }}>
+          <p style={{
+            fontFamily: font.mono, fontSize: 11, letterSpacing: '0.06em',
+            color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 10px',
+          }}>
+            CRISIS HELPLINES
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { name: 'iCall (India)', number: '9152987821' },
+              { name: 'Vandrevala Foundation', number: '18602662345' },
+              { name: 'AASRA', number: '9820466726' },
+            ].map((h) => (
+              <a
+                key={h.number}
+                href={`tel:${h.number}`}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  fontFamily: font.body, fontSize: 14, color: '#0f172a',
+                  textDecoration: 'none', padding: '8px 12px',
+                  background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0',
+                }}
+              >
+                <span>{h.name}</span>
+                <span style={{ fontFamily: font.mono, fontSize: 13, color: '#2563eb', fontWeight: 600 }}>
+                  {h.number}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <p style={{
+          fontFamily: font.body, fontSize: 13, color: '#64748b',
+          lineHeight: 1.6, margin: '0 0 20px',
+        }}>
+          Please reach out to any of these helplines. A trained counselor is
+          available to talk to you right now.
+        </p>
+
+        <button
+          onClick={onResume}
+          style={{
+            fontFamily: font.body, fontSize: 13, fontWeight: 400,
+            background: 'transparent', color: '#94a3b8',
+            border: `1px solid #e2e8f0`, borderRadius: 8,
+            padding: '9px 20px', cursor: 'pointer',
+          }}
+        >
+          I understand, continue chatting
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -736,6 +1007,15 @@ function ChatPage() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showSaveBtn, setShowSaveBtn] = useState(false);
   const [startTime] = useState(Date.now());
+  // location & alert
+  const [userLocation, setUserLocation] = useState(null);  // { lat, lng }
+  const [locationBanner, setLocationBanner] = useState('idle'); // 'idle' | 'asking' | 'granted' | 'denied'
+  const [alertSent, setAlertSent] = useState(false);
+  // crisis overlay
+  const [crisisActive, setCrisisActive] = useState(false);
+  // therapist offer
+  const [showTherapistCard, setShowTherapistCard] = useState(false);
+  const [therapistDone, setTherapistDone] = useState(false);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
   const hasSaveTriggered = useRef(false);
@@ -745,6 +1025,29 @@ function ChatPage() {
       const el = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (el) el.scrollTop = el.scrollHeight;
     }
+  }, []);
+
+  // Request geolocation — shown as a gentle banner, never forced
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) { setLocationBanner('denied'); return; }
+    setLocationBanner('asking');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationBanner('granted');
+      },
+      () => setLocationBanner('denied'),
+      { timeout: 10000 },
+    );
+  }, []);
+
+  // Offer location banner 3 s after chat loads (non-intrusive timing)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (locationBanner === 'idle') setLocationBanner('prompt');
+    }, 3000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -782,67 +1085,69 @@ function ChatPage() {
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, []);
 
-  const botResponses = [
-    "That sounds like it has been weighing on you. How long have you been feeling this way?",
-    "I hear you. It takes real honesty to put those feelings into words.",
-    "That makes sense given what you are going through. You are not overreacting.",
-    "I want you to know that whatever you are feeling right now is valid.",
-    "Sometimes naming the feeling is the hardest part. You have already done that.",
-    "It sounds like you have been carrying a lot. You do not have to sort through it all at once.",
-    "Thank you for trusting me with that. Can you tell me more about when this started?",
-    "That resonates. A lot of people feel that way but never say it \u2014 the fact that you are here matters.",
-  ];
-
   const handleSend = useCallback(
-    (text) => {
+    async (text) => {
       const trimmed = (text || input).trim();
-      if (!trimmed) return;
+      if (!trimmed || isTyping || crisisActive) return;
 
-      setMessages((prev) => [...prev, {
-        id: Date.now(),
-        text: trimmed,
-        isBot: false,
-        time: now(),
-      }]);
+      const userMsg = { id: Date.now(), text: trimmed, isBot: false, time: now() };
+      setMessages((prev) => [...prev, userMsg]);
       setInput('');
       setShowChips(false);
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
       const newCount = userMsgCount + 1;
       setUserMsgCount(newCount);
       if (newCount >= 5) setShowSaveBtn(true);
 
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      setIsTyping(true);
+      try {
+        const res = await fetch(`${API_URL}/api/chat`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            session_id: SESSION_ID,
+            message:    trimmed,
+            ...(userLocation && { location: userLocation }),
+          }),
+        });
 
-      const typingDelay = 400;
-      const typingDuration = 800 + Math.random() * 500;
-
-      setTimeout(() => setIsTyping(true), typingDelay);
-      setTimeout(() => {
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        const data = await res.json();
         setIsTyping(false);
 
+        if (data.alert_sent) setAlertSent(true);
+        if (data.danger) setCrisisActive(true);
+        if (data.therapist_offered && !therapistDone) setShowTherapistCard(true);
+
+        setMessages((prev) => [...prev, {
+          id:       Date.now() + 1,
+          text:     data.response,
+          isBot:    true,
+          time:     now(),
+          // expose to UI if needed later
+          criticality: data.criticality_label,
+          danger:      data.danger,
+          rag:         data.rag,
+          inWarmup:    data.in_warmup,
+        }]);
+
+        // save-chat nudge after 5 messages (once)
         if (newCount >= 5 && !hasSaveTriggered.current) {
           hasSaveTriggered.current = true;
-          setMessages((prev) => [...prev, {
-            id: Date.now() + 1,
-            text: "We have been talking for a while. If you would like to continue this tomorrow, you can save this conversation.",
-            isBot: true,
-            time: now(),
-          }]);
           setTimeout(() => setShowSaveDialog(true), 1200);
-        } else {
-          const idx = (newCount - 1) % botResponses.length;
-          setMessages((prev) => [...prev, {
-            id: Date.now() + 1,
-            text: botResponses[idx],
-            isBot: true,
-            time: now(),
-          }]);
         }
-      }, typingDelay + typingDuration);
+      } catch (err) {
+        setIsTyping(false);
+        setMessages((prev) => [...prev, {
+          id:    Date.now() + 1,
+          text:  "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+          isBot: true,
+          time:  now(),
+        }]);
+      }
     },
-    [input, userMsgCount, botResponses]
+    [input, isTyping, userMsgCount, crisisActive]
   );
 
   const handleKeyDown = (e) => {
@@ -932,6 +1237,109 @@ function ChatPage() {
         </div>
       </header>
 
+      {/* ─── LOCATION PERMISSION BANNER ─── */}
+      <AnimatePresence>
+        {locationBanner === 'prompt' && (
+          <motion.div
+            key="loc-prompt"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="shrink-0 z-10 flex items-center justify-between gap-3 px-5 py-3"
+            style={{
+              background: C.accentBg,
+              borderBottom: `1px solid ${C.accentMuted}`,
+              fontFamily: font.body,
+              fontSize: 13,
+              color: C.body,
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+              Share your location so a helper can reach you if things get critical
+            </span>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={requestLocation}
+                style={{
+                  fontFamily: font.body, fontSize: 12, fontWeight: 600,
+                  background: C.accent, color: '#fff',
+                  border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer',
+                }}
+              >
+                Allow
+              </button>
+              <button
+                onClick={() => setLocationBanner('denied')}
+                style={{
+                  fontFamily: font.body, fontSize: 12, fontWeight: 400,
+                  background: 'transparent', color: C.muted,
+                  border: `1px solid ${C.border}`, borderRadius: 6,
+                  padding: '5px 12px', cursor: 'pointer',
+                }}
+              >
+                Not now
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {locationBanner === 'granted' && (
+          <motion.div
+            key="loc-granted"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="shrink-0 flex items-center gap-2 px-5 py-2"
+            style={{
+              background: '#f0fdf4',
+              borderBottom: '1px solid #bbf7d0',
+              fontFamily: font.body,
+              fontSize: 12,
+              color: '#15803d',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Location shared — emergency alerts enabled
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── EMERGENCY ALERT SENT NOTIFICATION ─── */}
+      <AnimatePresence>
+        {alertSent && (
+          <motion.div
+            key="alert-sent"
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="shrink-0 flex items-center gap-3 px-5 py-3"
+            style={{
+              background: '#fff7ed',
+              borderBottom: '1px solid #fed7aa',
+              fontFamily: font.body,
+              fontSize: 13,
+              color: '#c2410c',
+              fontWeight: 500,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Emergency alert sent — a helper has been notified of your location
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ─── MESSAGES ─── */}
       <ScrollArea ref={scrollRef} className="flex-1">
         <div
@@ -951,6 +1359,15 @@ function ChatPage() {
           <QuickChips visible={showChips} onSelect={(chip) => handleSend(chip)} />
 
           <AnimatePresence>{isTyping && <TypingIndicator />}</AnimatePresence>
+
+          <AnimatePresence>
+            {showTherapistCard && !therapistDone && (
+              <TherapistCard
+                onClose={() => setShowTherapistCard(false)}
+                onDone={() => { setShowTherapistCard(false); setTherapistDone(true); }}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </ScrollArea>
 
@@ -985,7 +1402,8 @@ function ChatPage() {
               value={input}
               onChange={handleTextarea}
               onKeyDown={handleKeyDown}
-              placeholder="Say anything..."
+              disabled={crisisActive}
+              placeholder={crisisActive ? "Chat paused — please use the helplines above" : "Say anything..."}
               rows={1}
               style={{
                 flex: 1,
@@ -1140,6 +1558,16 @@ function ChatPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── CRISIS OVERLAY ─── */}
+      <AnimatePresence>
+        {crisisActive && (
+          <CrisisOverlay
+            hasLocation={!!userLocation}
+            onResume={() => setCrisisActive(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
