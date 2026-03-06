@@ -25,6 +25,11 @@ build/
 python/ml_models/**/go_emotions_saved/model.safetensors
 python/ml_models/**/go_emotions_saved/pytorch_model.bin
 
+# Environment / secrets
+.env
+*.env
+**/.env
+
 # IDE
 .vscode/
 .idea/
