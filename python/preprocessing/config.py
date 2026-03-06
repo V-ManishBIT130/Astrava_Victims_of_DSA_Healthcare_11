@@ -12,8 +12,8 @@ import re
 # MODEL IDENTIFIERS (HuggingFace Hub)
 # =============================================================================
 
-EMOTION_MODEL_NAME = "mental/mental-roberta-base"       # RoBERTa-based (cased, BPE)
-STRESS_MODEL_NAME = "jnyx74/stress-prediction"          # DistilBERT-based
+EMOTION_MODEL_NAME = "SamLowe/roberta-base-go_emotions"  # RoBERTa-base, 28-label multi-label
+STRESS_MODEL_NAME = "jnyx74/stress-prediction"           # DistilBERT-based (Dreaddit dataset)
 DEPRESSION_MODEL_NAME = "poudel/Depression_and_Non-Depression_Classifier"  # BERT-base-uncased
 
 ALL_MODEL_NAMES = {
@@ -26,7 +26,7 @@ ALL_MODEL_NAMES = {
 # TOKENIZER / EMBEDDING SETTINGS
 # =============================================================================
 
-MAX_SEQ_LENGTH = 128          # Max tokens per input (padding / truncation target)
+MAX_SEQ_LENGTH = 512          # Max tokens per input — all 3 models support 512
 EMBEDDING_DIM = 768           # Hidden size for all three base models
 BATCH_SIZE = 16               # Default inference batch size
 RETURN_TENSORS = "pt"         # PyTorch tensors
