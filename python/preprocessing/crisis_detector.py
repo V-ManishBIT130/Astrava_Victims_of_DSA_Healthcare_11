@@ -19,6 +19,7 @@ The detector runs on CLEANED text (after TextCleaner pipeline).
 Emojis are fully stripped before this point — no emoji patterns here.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -124,12 +125,27 @@ class CrisisDetector:
     # ── Layer 2: Phrase-bank matching ───────────────────────────────────────
 
     def _find_matches(self, text: str, keyword_set: set) -> List[str]:
-        """Find all keyword/phrase matches (longest first to avoid partial overlaps)."""
+        """
+        Find all keyword/phrase matches in text.
+
+        Multi-word phrases (containing spaces) use plain substring matching — safe
+        because the surrounding words already provide implicit boundaries.
+
+        Single words use regex word-boundary (\\b) matching to prevent partial hits
+        such as 'void' firing inside 'avoid', 'numb' inside 'number',
+        'sad' inside 'sadly', 'low' inside 'below', 'pain' inside 'explain'.
+        """
         text_lower = text.lower()
         matches = []
         for keyword in sorted(keyword_set, key=len, reverse=True):
-            if keyword in text_lower:
-                matches.append(keyword)
+            if " " in keyword:
+                # Multi-word phrase: substring match is safe
+                if keyword in text_lower:
+                    matches.append(keyword)
+            else:
+                # Single word: require exact word boundaries
+                if re.search(r"\b" + re.escape(keyword) + r"\b", text_lower):
+                    matches.append(keyword)
         return matches
 
     def _check_intensifiers(self, text: str) -> bool:

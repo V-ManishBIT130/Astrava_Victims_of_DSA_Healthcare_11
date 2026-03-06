@@ -12,8 +12,10 @@ Usage:
 """
 
 from transformers import pipeline
+import threading
 
 _classifier = None
+_lock = threading.Lock()
 
 # Per-label optimized thresholds from the model author's evaluation.
 # These maximize F1 per label (better than a flat 0.5 or 0.25 threshold).
@@ -32,14 +34,16 @@ THRESHOLDS = {
 
 
 def get_classifier():
-    """Lazy-load the model (singleton pattern — loads only once)."""
+    """Thread-safe lazy-load (double-checked locking)."""
     global _classifier
     if _classifier is None:
-        _classifier = pipeline(
-            task="text-classification",
-            model="SamLowe/roberta-base-go_emotions",
-            top_k=None,
-        )
+        with _lock:
+            if _classifier is None:  # second check inside lock
+                _classifier = pipeline(
+                    task="text-classification",
+                    model="SamLowe/roberta-base-go_emotions",
+                    top_k=None,
+                )
     return _classifier
 
 

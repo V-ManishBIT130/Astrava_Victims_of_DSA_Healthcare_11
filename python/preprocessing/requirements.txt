@@ -1,0 +1,11 @@
+# ASTRAVA Preprocessing Pipeline — Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core NLP / ML (required for full pipeline with tokenization and embeddings)
+transformers>=4.30.0
+torch>=2.0.0
+
+# The preprocessing module itself (cleaner, crisis detector, stopwords) has
+# NO external dependencies — it uses only the Python standard library.
+# transformers + torch are only needed if you use embedder.py or tokenizer.py
+# for RAG embedding generation.

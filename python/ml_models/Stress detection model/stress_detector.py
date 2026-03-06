@@ -15,8 +15,10 @@ Usage:
 """
 
 from transformers import pipeline
+import threading
 
 _classifier = None
+_lock = threading.Lock()
 
 MODEL_NAME = "jnyx74/stress-prediction"
 
@@ -28,13 +30,15 @@ LABELS = {
 
 
 def get_classifier():
-    """Lazy-load the model (singleton pattern)."""
+    """Thread-safe lazy-load (double-checked locking)."""
     global _classifier
     if _classifier is None:
-        _classifier = pipeline(
-            task="text-classification",
-            model=MODEL_NAME
-        )
+        with _lock:
+            if _classifier is None:  # second check inside lock
+                _classifier = pipeline(
+                    task="text-classification",
+                    model=MODEL_NAME
+                )
     return _classifier
 
 
