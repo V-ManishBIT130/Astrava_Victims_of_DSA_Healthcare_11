@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# ML Models - Large binary files (users should download via scripts)
+# These are too large for GitHub (>100MB each)
+*.pkl
+*.safetensors
+*.bin
+*.onnx
+*.h5
+*.pth
+*.pt
+
+# Keep the HuggingFace config files but ignore model weights
+python/ml_models/**/go_emotions_saved/model.safetensors
+python/ml_models/**/go_emotions_saved/pytorch_model.bin
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
