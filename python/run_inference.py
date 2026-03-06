@@ -163,7 +163,7 @@ class AstravaInference:
 # ── Pretty printer ─────────────────────────────────────────────────────────────
 
 def print_results(results: dict):
-    sep = "─" * 60
+    sep = "-" * 60
 
     print(f"\n{BOLD}{sep}")
     print(f"  ASTRAVA INFERENCE RESULTS")
@@ -192,7 +192,7 @@ def print_results(results: dict):
             print(f"  I-ratio:      {psy.get('i_ratio', 0):.3f}  |  Abs-ratio: {psy.get('absolute_ratio', 0):.3f}  |  Negations: {psy.get('negation_count', 0)}")
 
     if results.get("short_circuited"):
-        print(f"\n{RED}{BOLD}  ⚠️  SHORT-CIRCUITED — Crisis response triggered before model inference.{RESET}")
+        print(f"\n{RED}{BOLD}  [!] SHORT-CIRCUITED -- Crisis response triggered before model inference.{RESET}")
         print(f"  Total time: {results['total_ms']}ms\n")
         return
 
@@ -232,7 +232,7 @@ def print_results(results: dict):
         else:
             print(f"  Active (above threshold): none")
 
-    print(f"\n{BOLD}Total time: {results['total_ms']}ms{RESET}\n")
+    print(f"\n{BOLD}  Total time: {results['total_ms']}ms{RESET}\n")
     print(sep)
 
 
