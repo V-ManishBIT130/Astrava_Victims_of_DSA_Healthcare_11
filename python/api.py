@@ -18,6 +18,7 @@ import smtplib
 import sys
 import time
 import uuid
+import yagmail
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -41,6 +42,16 @@ load_dotenv(dotenv_path=ENV_PATH)
 OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3:latest")
 OLLAMA_TIMEOUT = 180  # seconds
+
+# ── Yagmail crisis email config ───────────────────────────────────────────────
+CRISIS_EMAIL_FROM     = os.getenv("CRISIS_EMAIL_FROM", "")       # Gmail address
+CRISIS_EMAIL_PASSWORD = os.getenv("CRISIS_EMAIL_PASSWORD", "")   # Gmail app password
+CRISIS_EMAIL_TO       = os.getenv("CRISIS_EMAIL_TO", "")         # Doctor's email
+CRISIS_EMAIL_READY    = bool(CRISIS_EMAIL_FROM and CRISIS_EMAIL_PASSWORD and CRISIS_EMAIL_TO)
+
+# Hardcoded sample coordinates for hackathon demo
+DEMO_LAT = 12.9716
+DEMO_LNG = 77.5946
 
 # ── Alert email config (optional — alerts silently disabled if unconfigured) ──
 ALERT_EMAIL_FROM   = os.getenv("ALERT_EMAIL_FROM", "")
@@ -151,6 +162,7 @@ def get_session(session_id: str) -> dict:
             "prev_assessed_label": None,
             "turn":                0,
             "alert_sent":          False,
+            "crisis_email_sent":   False,
             "therapist_offered":   False,
             "anon_uid":            anon_uid,
             "started_at":          datetime.now(timezone.utc),
@@ -241,6 +253,86 @@ Do NOT reply to this email.
         return False
 
 # ── request / response models ─────────────────────────────────────────────────
+
+
+def send_crisis_email(session_id: str, user_message: str, recent_turns: list[dict]) -> bool:
+    """Send a crisis alert email to the doctor via yagmail.
+    Uses hardcoded demo coordinates. Returns True on success."""
+    if not CRISIS_EMAIL_READY:
+        print("[CRISIS EMAIL] Credentials not configured — skipping.", flush=True)
+        return False
+
+    lat, lng = DEMO_LAT, DEMO_LNG
+    maps_url = f"https://www.google.com/maps?q={lat},{lng}"
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    short_id = session_id[:8]
+
+    convo_lines = ""
+    for t in recent_turns[-4:]:
+        convo_lines += (
+            f'<tr><td style="padding:6px 10px;color:#1e293b;"><b>Patient:</b> {t["user"][:200]}</td></tr>'
+            f'<tr><td style="padding:6px 10px;color:#475569;"><b>Solace:</b> {t.get("assistant","")[:200]}</td></tr>'
+        )
+
+    html_body = f"""
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <div style="background:#dc2626;color:#fff;padding:18px 24px;border-radius:10px 10px 0 0;">
+        <h2 style="margin:0;font-size:20px;">ASTRAVA — Crisis Alert</h2>
+      </div>
+      <div style="background:#fef2f2;padding:20px 24px;border:1px solid #fca5a5;border-top:none;border-radius:0 0 10px 10px;">
+        <p style="color:#991b1b;font-size:15px;font-weight:600;margin:0 0 12px;">
+          A patient has expressed critical distress and may need immediate help.
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+          <tr>
+            <td style="padding:4px 0;color:#64748b;width:110px;">Session</td>
+            <td style="padding:4px 0;color:#0f172a;font-weight:600;">{short_id}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#64748b;">Time</td>
+            <td style="padding:4px 0;color:#0f172a;">{timestamp}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 0;color:#64748b;">Coordinates</td>
+            <td style="padding:4px 0;color:#0f172a;">{lat}, {lng}</td>
+          </tr>
+        </table>
+
+        <a href="{maps_url}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:14px;margin-bottom:18px;">
+          Open Patient Location in Google Maps
+        </a>
+
+        <h3 style="color:#1e293b;font-size:14px;margin:18px 0 8px;border-bottom:1px solid #fca5a5;padding-bottom:6px;">Recent Conversation</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:6px;overflow:hidden;">
+          {convo_lines}
+        </table>
+
+        <p style="color:#991b1b;font-size:13px;margin:18px 0 0;font-weight:600;">
+          Please reach out or dispatch assistance as soon as possible.
+        </p>
+        <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">
+          Sent automatically by ASTRAVA Mental Health Platform. Do not reply.
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        yag = yagmail.SMTP(CRISIS_EMAIL_FROM, CRISIS_EMAIL_PASSWORD)
+        yag.send(
+            to=CRISIS_EMAIL_TO,
+            subject=f"[ASTRAVA CRISIS] Patient in distress — session {short_id}",
+            contents=html_body,
+        )
+        yag.close()
+        print(f"[CRISIS EMAIL] Sent to {CRISIS_EMAIL_TO} for session {short_id}", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[CRISIS EMAIL] Failed: {exc}", flush=True)
+        return False
+
+
 class LocationPayload(BaseModel):
     lat: float
     lng: float
@@ -483,6 +575,12 @@ async def chat(req: ChatRequest):
         )
         if alert_fired:
             sess["alert_sent"] = True
+
+    # ── Crisis yagmail to doctor (fires once per session, always — no location needed) ─
+    if crisis_now and not sess.get("crisis_email_sent"):
+        email_ok = send_crisis_email(req.session_id, req.message, sess["turns_history"])
+        if email_ok:
+            sess["crisis_email_sent"] = True
 
     return ChatResponse(
         response           = clean_response,

@@ -288,7 +288,7 @@ ABSOLUTE RULES — VIOLATING THESE BREAKS THE EXPERIENCE
 6. Respond ONLY with what you would say directly to the person. No preamble, no meta-commentary."""
 
 # ── Phases and label ordering ─────────────────────────────────────────────────
-WARMUP_TURNS         = 5   # turns 1–5: pure conversation, no criticality classification
+WARMUP_TURNS         = 3   # turns 1–3: pure conversation, no criticality classification
 THERAPIST_OFFER_TURN = 9   # earliest turn the LLM may offer a real-therapist connection
 _LEVELS              = ["LOW", "MEDIUM", "HIGH"]  # ordered low → high for smoothing
 MAX_WINDOW_PAIRS     = 6   # verbatim user+assistant pairs kept in the LLM context window
