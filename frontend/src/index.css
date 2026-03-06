@@ -1,0 +1,94 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius: 0.5rem;
+  --color-background: #f8f9fc;
+  --color-foreground: #1a1a2e;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1a2e;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1a1a2e;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #e8edf5;
+  --color-secondary-foreground: #3b4963;
+  --color-muted: #eef1f6;
+  --color-muted-foreground: #6b7a94;
+  --color-accent: #e8edf5;
+  --color-accent-foreground: #1a1a2e;
+  --color-destructive: #dc6843;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #d6dce8;
+  --color-input: #d6dce8;
+  --color-ring: #2563eb;
+  --color-sidebar-background: #f8f9fc;
+  --color-sidebar-foreground: #1a1a2e;
+  --color-sidebar-primary: #2563eb;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #e8edf5;
+  --color-sidebar-accent-foreground: #1a1a2e;
+  --color-sidebar-border: #d6dce8;
+  --color-sidebar-ring: #2563eb;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', sans-serif;
+    margin: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ── Infinite marquee ── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  animation: marquee 34s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track.paused {
+  animation-play-state: paused;
+}
+
+/* ── Feature card glow on hover ── */
+@keyframes card-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.22),
+                0 4px 24px rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.42),
+                0 8px 40px rgba(37, 99, 235, 0.24);
+    border-color: rgba(37, 99, 235, 0.52);
+  }
+}
+
+.feature-card {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+  animation: card-glow 2s ease-in-out infinite;
+}
