@@ -1,0 +1,1133 @@
+"""
+keywords.py — Comprehensive mental health keyword and phrase banks.
+
+These keyword banks power crisis detection, severity assessment, and
+emotionally-aware preprocessing across the ASTRAVA chatbot pipeline.
+
+Categories:
+  - CRISIS_KEYWORDS:              immediate escalation triggers
+  - CRISIS_PATTERNS:              compiled regex patterns for category-based detection
+  - DEPRESSION_KEYWORDS:          depressive language indicators
+  - ANXIETY_KEYWORDS:             anxiety and panic indicators
+  - STRESS_KEYWORDS:              stress and burnout indicators
+  - NEGATION_WORDS:               words that flip sentiment (preserved during stopword removal)
+  - EMOTION_INTENSIFIERS:         words that amplify emotional severity
+  - FIRST_PERSON:                 i/me/my/mine/myself — Pennebaker depression markers
+  - ABSOLUTE_LANGUAGE:            black-and-white thinking — CBT cognitive distortion marker
+  - RUMINATION_MARKERS:           cross-turn rumination detection
+  - DISSOCIATION_MARKERS:         dissociation signal — triggers grounding RAG responses
+  - EMOTIONAL_STOPWORDS_PRESERVE: master preserve set for stopword filtering
+"""
+
+import re
+
+# =============================================================================
+# CRISIS KEYWORDS — trigger IMMEDIATE HIGH-RISK escalation
+# =============================================================================
+
+CRISIS_KEYWORDS = frozenset([
+    # --- Suicidal ideation ---
+    "kill myself",
+    "want to die",
+    "wanna die",
+    "wish i was dead",
+    "wish i were dead",
+    "better off dead",
+    "no reason to live",
+    "no point in living",
+    "no point living",
+    "end it all",
+    "end my life",
+    "ending my life",
+    "end this life",
+    "take my life",
+    "take my own life",
+    "taking my life",
+    "suicide",
+    "suicidal",
+    "suicidal thoughts",
+    "suicidal ideation",
+    "thinking about suicide",
+    "contemplating suicide",
+    "planning suicide",
+    "commit suicide",
+    "committing suicide",
+    "want to end it",
+    "going to end it",
+    "ready to die",
+    "ready to end it",
+    "can not go on",
+    "cannot go on",
+    "can not take it anymore",
+    "cannot take it anymore",
+    "can not do this anymore",
+    "cannot do this anymore",
+    "do not want to live",
+    "do not want to be alive",
+    "do not want to exist",
+    "do not want to be here",
+    "do not want to wake up",
+    "hope i do not wake up",
+    "hope i die",
+    "nobody would miss me",
+    "no one would miss me",
+    "world is better without me",
+    "everyone would be better off",
+    "better without me",
+    "life is not worth living",
+    "life is not worth it",
+    "nothing left to live for",
+    "nothing to live for",
+    "no future",
+    "see no future",
+    "there is no way out",
+    "no way out",
+    "trapped with no escape",
+    "everything is pointless",
+
+    # --- Self-harm ---
+    "cut myself",
+    "cutting myself",
+    "self harm",
+    "self-harm",
+    "selfharm",
+    "hurt myself",
+    "hurting myself",
+    "harming myself",
+    "harm myself",
+    "burn myself",
+    "burning myself",
+    "punish myself",
+    "punishing myself",
+    "scratch myself",
+    "hitting myself",
+    "starving myself",
+    "purging",
+    "self injury",
+    "self-injury",
+    "self mutilation",
+    "self-mutilation",
+
+    # --- Lethal means ---
+    "overdose",
+    "take all my pills",
+    "take all the pills",
+    "hang myself",
+    "hanging myself",
+    "jump off",
+    "jumping off",
+    "drown myself",
+    "drowning myself",
+    "shoot myself",
+    "slit my wrists",
+    "slitting my wrists",
+
+    # --- Goodbye / farewell messages ---
+    "goodbye forever",
+    "goodbye world",
+    "this is my last message",
+    "final goodbye",
+    "goodbye everyone",
+    "farewell",
+    "last letter",
+    "suicide note",
+    "writing my note",
+    "saying goodbye",
+    "one last time",
+    "before i go",
+    "when i am gone",
+    "after i am gone",
+    "my final words",
+    "i will not be here tomorrow",
+    "will not be around much longer",
+    "will not be here much longer",
+    "this is the end",
+    "it will all be over soon",
+    "soon it will be over",
+    "tonight is the night",
+    "made up my mind",
+    "decided to end it",
+    "i have a plan",
+    "already decided",
+])
+
+
+# =============================================================================
+# DEPRESSION KEYWORDS — indicators of depressive patterns
+# =============================================================================
+
+DEPRESSION_KEYWORDS = frozenset([
+    # --- Core depressive feelings ---
+    "depressed",
+    "depression",
+    "depressive",
+    "sad",
+    "sadness",
+    "unhappy",
+    "miserable",
+    "misery",
+    "despair",
+    "despairing",
+    "hopeless",
+    "hopelessness",
+    "helpless",
+    "helplessness",
+    "worthless",
+    "worthlessness",
+    "useless",
+    "failure",
+    "broken",
+    "shattered",
+    "empty",
+    "emptiness",
+    "void",
+    "numb",
+    "numbness",
+    "hollow",
+    "dark",
+    "darkness",
+    "bleak",
+    "gloomy",
+    "gloom",
+    "desolate",
+    "defeated",
+    "crushed",
+
+    # --- Anhedonia (loss of interest / pleasure) ---
+    "lost interest",
+    "no interest",
+    "nothing makes me happy",
+    "nothing brings me joy",
+    "lost all motivation",
+    "no motivation",
+    "unmotivated",
+    "do not enjoy anything",
+    "do not care anymore",
+    "stopped caring",
+    "nothing matters",
+    "what is the point",
+    "pointless",
+    "meaningless",
+    "purposeless",
+    "no purpose",
+    "no meaning",
+    "going through the motions",
+    "just existing",
+    "barely surviving",
+    "surviving not living",
+
+    # --- Sleep disturbances ---
+    "cannot sleep",
+    "can not sleep",
+    "insomnia",
+    "sleeping all day",
+    "sleep too much",
+    "oversleeping",
+    "exhausted",
+    "fatigue",
+    "fatigued",
+    "tired all the time",
+    "always tired",
+    "no energy",
+    "drained",
+    "lethargic",
+    "lethargy",
+    "cannot get out of bed",
+    "staying in bed all day",
+    "bed all day",
+
+    # --- Appetite / weight changes ---
+    "lost appetite",
+    "no appetite",
+    "not eating",
+    "stopped eating",
+    "overeating",
+    "binge eating",
+    "comfort eating",
+    "emotional eating",
+    "weight gain",
+    "weight loss",
+    "lost weight",
+
+    # --- Cognitive decline ---
+    "cannot concentrate",
+    "cannot focus",
+    "brain fog",
+    "confused",
+    "forgetful",
+    "memory problems",
+    "cannot think clearly",
+    "mind is blank",
+    "spacing out",
+    "zoning out",
+    "cannot make decisions",
+    "indecisive",
+
+    # --- Social withdrawal ---
+    "isolated",
+    "isolation",
+    "withdrawn",
+    "withdrawing",
+    "alone",
+    "lonely",
+    "loneliness",
+    "no friends",
+    "no one cares",
+    "nobody cares",
+    "no one understands",
+    "nobody understands",
+    "pushing everyone away",
+    "pushed everyone away",
+    "do not want to see anyone",
+    "avoiding people",
+    "avoiding everyone",
+    "staying home",
+    "locked in my room",
+    "hiding from the world",
+    "disconnected",
+    "alienated",
+
+    # --- Self-blame / guilt ---
+    "hate myself",
+    "i am a burden",
+    "i am a failure",
+    "everything is my fault",
+    "i ruin everything",
+    "i am not good enough",
+    "i am not enough",
+    "disgusted with myself",
+    "disappointed in myself",
+    "ashamed of myself",
+    "self loathing",
+    "self-loathing",
+    "self hatred",
+    "self-hatred",
+    "guilt",
+    "guilty",
+    "regret",
+    "blame myself",
+    "unforgivable",
+    "i deserve this",
+    "i deserve to suffer",
+
+    # --- Crying / emotional pain ---
+    "crying",
+    "cry all the time",
+    "cannot stop crying",
+    "tears",
+    "sobbing",
+    "breaking down",
+    "falling apart",
+    "emotional pain",
+    "hurting inside",
+    "aching inside",
+    "pain inside",
+    "suffering",
+    "agony",
+    "torment",
+    "anguish",
+])
+
+
+# =============================================================================
+# ANXIETY KEYWORDS — indicators of anxiety and panic
+# =============================================================================
+
+ANXIETY_KEYWORDS = frozenset([
+    # --- Core anxiety feelings ---
+    "anxious",
+    "anxiety",
+    "worried",
+    "worry",
+    "worrying",
+    "nervous",
+    "nervousness",
+    "uneasy",
+    "unease",
+    "restless",
+    "restlessness",
+    "on edge",
+    "tense",
+    "tension",
+    "apprehensive",
+    "apprehension",
+    "dread",
+    "dreading",
+    "fearful",
+    "fear",
+    "afraid",
+    "scared",
+    "terrified",
+    "terror",
+    "frightened",
+    "paranoid",
+    "paranoia",
+    "overthinking",
+    "over thinking",
+    "ruminating",
+    "rumination",
+
+    # --- Panic attacks ---
+    "panic",
+    "panic attack",
+    "panic attacks",
+    "panicking",
+    "panicked",
+    "hyperventilating",
+    "hyperventilation",
+    "cannot breathe",
+    "can not breathe",
+    "shortness of breath",
+    "hard to breathe",
+    "difficulty breathing",
+    "gasping for air",
+    "choking feeling",
+    "feel like i am dying",
+    "thought i was dying",
+    "going to pass out",
+    "feel faint",
+    "dizzy",
+    "dizziness",
+    "lightheaded",
+    "light headed",
+
+    # --- Physical anxiety symptoms ---
+    "racing heart",
+    "heart pounding",
+    "heart racing",
+    "palpitations",
+    "chest tightness",
+    "chest pain",
+    "chest pressure",
+    "stomach churning",
+    "nauseous",
+    "nausea",
+    "shaking",
+    "trembling",
+    "sweating",
+    "sweaty palms",
+    "cold sweat",
+    "muscle tension",
+    "tight muscles",
+    "jaw clenching",
+    "grinding teeth",
+    "headache",
+    "migraine",
+    "tingling",
+    "pins and needles",
+
+    # --- Catastrophizing / worry spirals ---
+    "what if",
+    "worst case scenario",
+    "something bad will happen",
+    "something terrible",
+    "everything will go wrong",
+    "losing control",
+    "out of control",
+    "spiraling",
+    "going crazy",
+    "losing my mind",
+    "cannot stop worrying",
+    "constant worry",
+    "worry about everything",
+    "always worried",
+    "mind racing",
+    "racing thoughts",
+    "thoughts will not stop",
+    "intrusive thoughts",
+    "obsessive thoughts",
+    "cannot turn off my brain",
+    "cannot shut my mind off",
+
+    # --- Avoidance behaviors ---
+    "avoiding",
+    "avoidance",
+    "cannot face",
+    "dreading going",
+    "afraid to go",
+    "scared to leave",
+    "do not want to go outside",
+    "agoraphobia",
+    "claustrophobic",
+    "social anxiety",
+    "afraid of people",
+    "afraid of judgment",
+    "fear of failure",
+    "fear of rejection",
+    "fear of abandonment",
+    "performance anxiety",
+    "test anxiety",
+    "stage fright",
+])
+
+
+# =============================================================================
+# STRESS KEYWORDS — indicators of stress and burnout
+# =============================================================================
+
+STRESS_KEYWORDS = frozenset([
+    # --- Core stress feelings ---
+    "stressed",
+    "stress",
+    "stressful",
+    "stressed out",
+    "under pressure",
+    "pressure",
+    "pressured",
+    "overwhelmed",
+    "overwhelming",
+    "overloaded",
+    "overworked",
+    "burned out",
+    "burnout",
+    "burnt out",
+    "run down",
+    "worn out",
+    "frazzled",
+    "maxed out",
+    "at my limit",
+    "reached my limit",
+    "at breaking point",
+    "breaking point",
+    "about to snap",
+    "snapping",
+    "going to explode",
+    "losing it",
+    "cannot handle it",
+    "cannot cope",
+    "coping",
+    "struggling",
+    "struggling to cope",
+    "barely coping",
+    "falling behind",
+
+    # --- Work / academic stress ---
+    "work stress",
+    "job stress",
+    "workplace stress",
+    "workload",
+    "too much work",
+    "deadline",
+    "deadlines",
+    "behind schedule",
+    "impossible deadline",
+    "demanding boss",
+    "toxic workplace",
+    "toxic work environment",
+    "hostile work",
+    "micromanaged",
+    "underpaid",
+    "overqualified",
+    "undervalued",
+    "unappreciated",
+    "exam stress",
+    "finals stress",
+    "homework",
+    "assignment",
+    "academic pressure",
+    "college stress",
+    "school stress",
+    "grades",
+    "failing class",
+    "dropped out",
+    "dropping out",
+
+    # --- Relationship / family stress ---
+    "relationship problems",
+    "relationship stress",
+    "fighting with",
+    "arguing with",
+    "conflict with",
+    "family problems",
+    "family stress",
+    "family issues",
+    "divorce",
+    "breakup",
+    "broke up",
+    "cheated on",
+    "betrayed",
+    "toxic relationship",
+    "abusive relationship",
+    "domestic violence",
+    "custody",
+    "parenting stress",
+
+    # --- Financial stress ---
+    "financial stress",
+    "money problems",
+    "debt",
+    "in debt",
+    "cannot pay",
+    "cannot afford",
+    "bills piling up",
+    "lost my job",
+    "fired",
+    "laid off",
+    "unemployed",
+    "bankruptcy",
+    "eviction",
+    "homeless",
+    "rent",
+
+    # --- Physical stress symptoms ---
+    "cannot relax",
+    "cannot unwind",
+    "tense",
+    "uptight",
+    "irritable",
+    "irritated",
+    "agitated",
+    "frustrated",
+    "frustration",
+    "angry",
+    "rage",
+    "snappy",
+    "short tempered",
+    "impatient",
+    "grinding teeth",
+    "clenching jaw",
+    "tension headache",
+    "stress eating",
+    "drinking too much",
+    "smoking more",
+    "substance use",
+])
+
+
+# =============================================================================
+# NEGATION WORDS — flip sentiment; MUST be preserved during stopword removal
+# Every single one is kept — negations are clinically critical.
+# =============================================================================
+
+NEGATION_WORDS = frozenset([
+    # Core negations
+    "not",
+    "no",
+    "never",
+    "none",
+    "nobody",
+    "nothing",
+    "nowhere",
+    "neither",
+    "nor",
+    "cannot",
+    "can not",
+    "n't",
+    # Expanded negations (post-contraction-expansion)
+    "without",
+    "hardly",
+    "barely",
+    "scarcely",
+    "seldom",
+    "rarely",
+    "do not",
+    "does not",
+    "did not",
+    "will not",
+    "would not",
+    "should not",
+    "could not",
+    "might not",
+    "must not",
+    "is not",
+    "are not",
+    "was not",
+    "were not",
+    "has not",
+    "have not",
+    "had not",
+    "need not",
+    # Soft negations — often missed
+    "lack",
+    "lacking",
+    "absent",
+    "missing",
+    # Dismissive negations
+    "nope",
+    "nah",
+    "naw",
+    "aint",
+    "ain't",
+    # Negated ability
+    "unable",
+    "incapable",
+    "powerless",
+    "helpless",
+    "hopeless",
+    # Negated existence
+    "empty",
+    "void",
+    "hollow",
+    "blank",
+])
+
+
+# =============================================================================
+# EMOTION INTENSIFIERS — amplify the severity of emotional expressions.
+# "Very sad" is clinically different from "sad."
+# Minimizing intensifiers (just, only, kinda) are also clinically relevant —
+# they signal downplaying / minimization behavior.
+# =============================================================================
+
+EMOTION_INTENSIFIERS = frozenset([
+    # Standard intensifiers
+    "extremely",
+    "incredibly",
+    "terribly",
+    "horribly",
+    "absolutely",
+    "completely",
+    "totally",
+    "utterly",
+    "entirely",
+    "deeply",
+    "profoundly",
+    "severely",
+    "intensely",
+    "desperately",
+    "enormously",
+    "immensely",
+    "overwhelmingly",
+    "unbearably",
+    "unbelievably",
+    "excessively",
+    "awfully",
+    "painfully",
+    "exceedingly",
+    "very",
+    "really",
+    "truly",
+    "so",
+    "too",
+    "quite",
+    "rather",
+    "fairly",
+    "pretty",
+    "much",
+    "badly",
+    "seriously",
+    "genuinely",
+    "honestly",
+    "literally",
+    "constantly",
+    "always",
+    "forever",
+    "ever",
+    # Colloquial intensifiers (common in Reddit / social media)
+    "super",
+    "hella",
+    "mad",
+    "lowkey",
+    "highkey",
+    "legit",
+    "actually",
+    "straight",
+    "deadass",
+    "fr",
+    "forreal",
+    # Negative intensifiers
+    "devastatingly",
+    "hopelessly",
+    "dreadfully",
+    # Minimizing intensifiers (downplaying — also clinically relevant)
+    "just",
+    "only",
+    "merely",
+    "simply",
+    "kinda",
+    "sorta",
+    "slightly",
+    "somewhat",
+])
+
+
+# =============================================================================
+# FIRST PERSON PRONOUNS — Pennebaker (2003): depressed individuals use
+# significantly more first-person singular pronouns. High i/me/my ratio is a
+# depression marker. These are 1-2 chars and would be dropped by short-token
+# filters — explicitly preserve all of them.
+# =============================================================================
+
+FIRST_PERSON = frozenset([
+    "i",        # Nominative
+    "me",       # Objective
+    "my",       # Possessive
+    "mine",     # Possessive pronoun
+    "myself",   # Reflexive
+])
+
+
+# =============================================================================
+# ABSOLUTE LANGUAGE — Black-and-white thinking is a CBT-recognized cognitive
+# distortion in depression. Preserve these tokens AND count them in the
+# psycholinguistic feature extractor (absolute_ratio).
+# =============================================================================
+
+ABSOLUTE_LANGUAGE = frozenset([
+    # Universal quantifiers
+    "always", "never", "everyone", "nobody", "everything",
+    "nothing", "everywhere", "nowhere", "all", "none",
+    "every", "no one", "anybody", "anything", "anytime",
+    # Permanence words (hopelessness marker)
+    "forever", "permanent", "permanently", "eternal", "eternally",
+    "irreversible", "unchangeable", "unchanging", "stuck",
+    # Totality words
+    "completely", "totally", "entirely", "utterly", "wholly",
+    "absolutely", "perfectly", "purely",
+])
+
+
+# =============================================================================
+# RUMINATION MARKERS — If the user keeps returning to these word clusters
+# across conversation turns it signals a rumination pattern — a key anxiety
+# and depression indicator. Checked across the full cleaned text.
+# =============================================================================
+
+RUMINATION_MARKERS = frozenset([
+    # Cognitive loops
+    "keep thinking",
+    "cant stop thinking",
+    "cannot stop thinking",
+    "stuck in my head",
+    "going over",
+    "replaying",
+    "overthinking",
+    "over and over",
+    "again and again",
+    "cant get out of my head",
+    "cannot get out of my head",
+    # Regret loops
+    "should have",
+    "could have",
+    "would have",
+    "if only",
+    "what if",
+    "why did i",
+    "why didnt i",
+    "why did not i",
+    "i wish i had",
+    # Worry loops
+    "what would happen",
+    "what would i do",
+    "i keep worrying",
+    "cant stop worrying",
+    "cannot stop worrying",
+    "always worried",
+    "anxious about",
+    "scared that",
+    "afraid that",
+])
+
+
+# =============================================================================
+# DISSOCIATION MARKERS — Dissociation language is a specific signal that
+# warrants different LLM behavior (grounding responses, not advice).
+# Checked on cleaned text after slang normalization.
+# =============================================================================
+
+DISSOCIATION_MARKERS = frozenset([
+    "zoned out",
+    "spaced out",
+    "checked out",
+    "not really here",
+    "feel like i am watching myself",
+    "feel like its not real",
+    "feel like it is not real",
+    "nothing feels real",
+    "do not feel real",
+    "dont feel real",
+    "not real",
+    "like i am in a dream",
+    "like a dream",
+    "dreamlike",
+    "i feel emotionally numb",
+    "cannot feel anything",
+    "feel nothing",
+    "feeling nothing",
+    "disconnected",
+    "detached",
+    "like i am not myself",
+    "do not recognize myself",
+    "dont recognize myself",
+    "who am i",
+    "lost myself",
+    "feel empty",
+    "hollow inside",
+    "nothing inside",
+    "going through the motions",
+    "on autopilot",
+    "i am dissociating",
+])
+
+
+# =============================================================================
+# CRISIS PATTERNS — Compiled regex patterns for category-based crisis detection.
+# Used by CrisisDetector alongside the CRISIS_KEYWORDS phrase bank.
+#
+# Severity routing:
+#   PLANNING          → CRITICAL  (ideation has moved to action)
+#   DIRECT_IDEATION
+#   SELF_HARM         → HIGH      (confirmed crisis)
+#   HOPELESSNESS
+#   ISOLATION         → ELEVATED  (needs conversational context)
+#   DARK_HUMOR_FLAG   → ELEVATED  (needs_review=True, no auto-crisis)
+# =============================================================================
+
+CRISIS_PATTERNS = {
+
+    "DIRECT_IDEATION": [
+        re.compile(r'\bsuicid\w*\b', re.I),
+        re.compile(r'\bkill\s+myself\b', re.I),
+        re.compile(r'\bend\s+my\s+life\b', re.I),
+        re.compile(r'\bwant\s+to\s+die\b', re.I),
+        re.compile(r'\bwish\s+(i\s+was|i\s+were)\s+dead\b', re.I),
+        re.compile(r'\bwish\s+i\s+was\s+never\s+born\b', re.I),
+        re.compile(r'\bbetter\s+off\s+dead\b', re.I),
+        re.compile(r'\bbetter\s+off\s+without\s+me\b', re.I),
+        re.compile(r'\bno\s+reason\s+to\s+live\b', re.I),
+        re.compile(r'\bno\s+point\s+(in\s+)?living\b', re.I),
+        re.compile(r'\bnot\s+worth\s+living\b', re.I),
+        re.compile(r'\blife\s+(is\s+)?not\s+worth\b', re.I),
+        re.compile(r'\bready\s+to\s+die\b', re.I),
+        re.compile(r'\bwant(ing)?\s+it\s+(all\s+)?to\s+end\b', re.I),
+    ],
+
+    "SELF_HARM": [
+        re.compile(r'\bself[\s\-]?harm\w*\b', re.I),
+        re.compile(r'\bcutting\s+(myself|my\s+(arms?|wrists?|legs?|skin))\b', re.I),
+        re.compile(r'\bcut\s+(myself|my\s+(arms?|wrists?))\b', re.I),
+        re.compile(r'\bhurt\s+myself\b', re.I),
+        re.compile(r'\binjur\w*\s+myself\b', re.I),
+        re.compile(r'\bburn\w*\s+(myself|my\s+(skin|arms?))\b', re.I),
+        re.compile(r'\bbleed\w*\s+myself\b', re.I),
+        re.compile(r'\bscarring\s+(myself|my)\b', re.I),
+    ],
+
+    "PLANNING": [
+        # Highest severity — ideation has moved to action
+        re.compile(r'\bhave\s+a\s+plan\b', re.I),
+        re.compile(r'\bplanning\s+to\b.{0,30}(die|end|kill|hurt)', re.I | re.S),
+        re.compile(r'\bgoodbye\s+(letter|note|message)\b', re.I),
+        re.compile(r'\bsaying\s+goodbye\b', re.I),
+        re.compile(r'\bgiving\s+away\s+(my\s+)?(stuff|things|belongings|possessions)\b', re.I),
+        re.compile(r'\bno\s+one\s+will\s+(miss|notice|care)\s+(me|if\s+i)\b', re.I),
+        re.compile(r'\bpills?\b.{0,20}\b(take|took|taken|swallow)\b', re.I | re.S),
+        re.compile(r'\boverdo(se|sing|sed)?\b', re.I),
+    ],
+
+    "HOPELESSNESS": [
+        re.compile(r'\bno\s+(future|hope|way\s+out|escape)\b', re.I),
+        re.compile(r'\btrap(ped)?\b', re.I),
+        re.compile(r'\bstuck\s+(here|like\s+this|forever)\b', re.I),
+        re.compile(r'\bnever\s+get(s|ting)?\s+better\b', re.I),
+        re.compile(r'\balways\s+(feel|be|going\s+to\s+be)\s+(like\s+this|this\s+way)\b', re.I),
+        re.compile(r"\bcan\s*'?t\s+go\s+on\b", re.I),
+        re.compile(r'\bcant\s+go\s+on\b', re.I),
+        re.compile(r"\bcan\s*'?t\s+(keep\s+going|do\s+this\s+anymore)\b", re.I),
+        re.compile(r'\bexhausted\s+(of|by|with)\s+(life|living|everything|existing)\b', re.I),
+        re.compile(r'\btired\s+of\s+(life|living|existing|being\s+alive)\b', re.I),
+        re.compile(r'\bdone\s+(with\s+everything|with\s+life|living)\b', re.I),
+    ],
+
+    "ISOLATION": [
+        re.compile(r'\beveryone\s+(would\s+be\s+)?(better|happier)\s+(off\s+)?without\s+me\b', re.I),
+        re.compile(r"\bi\s*'?m\s+a\s+burden\b", re.I),
+        re.compile(r'\bi\s+am\s+a\s+burden\b', re.I),
+        re.compile(r'\bnobody\s+(wants|needs|cares\s+about)\s+me\b', re.I),
+        re.compile(r'\bcompletely\s+alone\b', re.I),
+        re.compile(r'\btotally\s+alone\b', re.I),
+        re.compile(r'\bno\s+one\s+(to\s+)?(talk\s+to|turn\s+to|help\s+me)\b', re.I),
+        re.compile(r'\bnobody\s+(to\s+)?(talk\s+to|turn\s+to|help\s+me)\b', re.I),
+    ],
+
+    "DARK_HUMOR_FLAG": [
+        # Not confirmed crisis — needs conversational context.
+        # Returns needs_review=True, severity=ELEVATED.
+        re.compile(r'\bkms\b', re.I),
+        re.compile(r'\bkys\b', re.I),
+        re.compile(r"\bi\s*'?m\s+so\s+dead\b", re.I),
+        re.compile(r"\blmao\s+(im|i'm|i\s+am)\s+dead\b", re.I),
+        re.compile(r'\[DARK_HUMOR_POSSIBLE\]', re.I),  # injected by SLANG_MAP
+    ],
+}
+
+
+# =============================================================================
+# EMOTIONAL STOPWORDS TO PRESERVE
+# Master set of words that must NOT be removed during stopword filtering.
+# Combines negation words, intensifiers, first-person pronouns, absolute
+# language, and emotion-carrying function words.
+# =============================================================================
+
+EMOTIONAL_STOPWORDS_PRESERVE = frozenset(
+    NEGATION_WORDS
+    | EMOTION_INTENSIFIERS
+    | FIRST_PERSON
+    | ABSOLUTE_LANGUAGE
+    | {
+        # --- Emotion-carrying function words ---
+        "feel",
+        "feeling",
+        "feelings",
+        "felt",
+        "want",
+        "wanted",
+        "wanting",
+        "need",
+        "needed",
+        "needing",
+        "wish",
+        "wished",
+        "wishing",
+        "hope",
+        "hoped",
+        "hoping",
+        "hate",
+        "hated",
+        "hating",
+        "love",
+        "loved",
+        "loving",
+        "like",
+        "liked",
+        "liking",
+        "fear",
+        "feared",
+        "fearing",
+        "hurt",
+        "hurting",
+        "cry",
+        "crying",
+        "cried",
+        "die",
+        "dying",
+        "dead",
+        "death",
+        "kill",
+        "killing",
+        "pain",
+        "painful",
+        "suffer",
+        "suffering",
+        "alone",
+        "lonely",
+        "lost",
+        "losing",
+        "down",
+        "low",
+        "bad",
+        "worse",
+        "worst",
+        "awful",
+        "terrible",
+        "horrible",
+        "miserable",
+        "okay",
+        "ok",
+        "fine",
+        "good",
+        "better",
+        "best",
+        "happy",
+        "great",
+        "well",
+        "help",
+        "helped",
+        "helping",
+        "more",
+        "less",
+        "most",
+        "least",
+        "only",
+        "just",
+        "still",
+        "even",
+        "yet",
+        "already",
+        "again",
+        "anymore",
+        "any",
+        "every",
+        "all",
+        "enough",
+        "too",
+        "myself",
+        "yourself",
+        "himself",
+        "herself",
+        "itself",
+        "ourselves",
+        "themselves",
+        "me",
+        "my",
+        "mine",
+        "i",
+        "we",
+        "us",
+        "our",
+        "ours",
+        "but",
+        "however",
+        "although",
+        "though",
+        "because",
+        "since",
+        "until",
+        "unless",
+        "if",
+        "when",
+        "while",
+        "before",
+        "after",
+        "should",
+        "could",
+        "would",
+        "might",
+        "must",
+        "can",
+        "will",
+        "may",
+        "shall",
+        "try",
+        "tried",
+        "trying",
+        "stop",
+        "stopped",
+        "stopping",
+        "start",
+        "started",
+        "starting",
+        "keep",
+        "kept",
+        "keeping",
+        "give",
+        "gave",
+        "giving",
+        "take",
+        "took",
+        "taking",
+        "make",
+        "made",
+        "making",
+        "get",
+        "got",
+        "getting",
+        "go",
+        "went",
+        "going",
+        "gone",
+        "come",
+        "came",
+        "coming",
+        "leave",
+        "left",
+        "leaving",
+        "end",
+        "ended",
+        "ending",
+        "live",
+        "lived",
+        "living",
+        "life",
+    }
+)
