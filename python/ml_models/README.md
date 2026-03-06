@@ -1,6 +1,6 @@
 # ML Models - Standalone Projects
 
-This folder contains two emotion/mental health classification models that work as **standalone, plug-and-play** modules. Model weights are **NOT** included in this repository (they're 400-500MB each). Instead, models auto-download from HuggingFace on first use.
+This folder contains three mental health/emotion classification models that work as **standalone, plug-and-play** modules. Model weights are **NOT** included in this repository (they're 200-500MB each). Instead, models auto-download from HuggingFace on first use.
 
 ---
 
@@ -19,6 +19,13 @@ This folder contains two emotion/mental health classification models that work a
 **Task:** Multi-label emotion classification (28 emotions)  
 **Base:** RoBERTa-base  
 **Labels:** joy, anger, sadness, fear, gratitude, admiration, and 22 more
+
+### 3. Stress Detector
+**Location:** `Stress detection model/`  
+**Model:** [`jnyx74/stress-prediction`](https://huggingface.co/jnyx74/stress-prediction)  
+**Task:** Binary text classification (Stressed / No Stress)  
+**Base:** DistilBERT (fine-tuned on Dreaddit dataset)  
+**Speed:** 17-20 sentences/sec on CPU
 
 ---
 
@@ -52,6 +59,22 @@ print(top)
 # {'label': 'gratitude', 'score': 0.98}
 ```
 
+### Use Stress Detector
+```python
+from stress_detector import detect_stress, get_stress_level, should_trigger_alert
+
+result = detect_stress("I'm so overwhelmed with deadlines!")
+print(result)
+# {'is_stressed': True, 'confidence': 0.9859, 'readable_label': 'Stressed'}
+
+level = get_stress_level("Having a great day!")
+print(level)
+# 'low'
+
+if should_trigger_alert("I can't handle all this pressure"):
+    print("Alert: High stress detected!")
+```
+
 ---
 
 ## 📖 Documentation
@@ -60,18 +83,19 @@ Each model folder contains:
 - **Setup Guide** - Complete docs with usage examples, API specs, integration patterns
 - **Python module** - Ready-to-import classifier class
 - **Test script** - Run to verify everything works
-- **Export script** - Optional: save models locally
+- **Export script** - Optional: save models locally (Depression & GoEmotions only)
 
 | Model | Setup Guide | Module |
 |---|---|---|
 | Depression Classifier | [MODEL_SETUP_GUIDE.md](depression%20classifier%20model/MODEL_SETUP_GUIDE.md) | `depression_classifier.py` |
 | GoEmotions | [SETUP_GUIDE.md](go_emotion%20model/SETUP_GUIDE.md) | `emotion_detector.py` |
+| Stress Detector | [SETUP_GUIDE.md](Stress%20detection%20model/SETUP_GUIDE.md) | `stress_detector.py` |
 
 ---
 
 ## 🔧 First Run Setup
 
-**Both models auto-download on first use** (~500MB each, one-time):
+**All models auto-download on first use** (~200-500MB each, one-time):
 
 1. Install dependencies: `pip install transformers torch`
 2. Import and use the model - it downloads automatically
@@ -85,7 +109,7 @@ Each model folder contains:
 
 ## 📁 Why No Model Files in Git?
 
-Model weights (`.pkl`, `.safetensors`) are **400-500MB each** - too large for GitHub (100MB limit). They're gitignored and users download them automatically from HuggingFace Hub.
+Model weights (`.pkl`, `.safetensors`) are **200-500MB each** - too large for GitHub (100MB limit). They're gitignored and users download them automatically from HuggingFace Hub.
 
 **Benefits:**
 - ✅ Fast repo cloning
@@ -118,17 +142,22 @@ from depression_classifier import DepressionClassifier
 
 ## 🌐 API / REST Service
 
-Both setup guides include FastAPI examples for creating REST endpoints. Quick example:
+All setup guides include FastAPI examples for creating REST endpoints. Quick example:
 
 ```python
 from fastapi import FastAPI
 from emotion_detector import detect_emotions
+from stress_detector import detect_stress
 
 app = FastAPI()
 
-@app.post("/analyze")
-async def analyze(text: str):
+@app.post("/analyze/emotions")
+async def analyze_emotions(text: str):
     return {"emotions": detect_emotions(text)}
+
+@app.post("/analyze/stress")
+async def analyze_stress(text: str):
+    return detect_stress(text)
 
 # Run: uvicorn api:app --port 8000
 ```
@@ -141,6 +170,7 @@ async def analyze(text: str):
 |---|---|---|---|
 | Depression Classifier | ~438MB | ~50-100ms | ~5-10ms |
 | GoEmotions | ~479MB | ~100-200ms | ~10-20ms |
+| Stress Detector | ~265MB | ~40-60ms | ~5-8ms |
 
 For production, consider ONNX (quantized, faster) - see setup guides.
 
