@@ -157,6 +157,35 @@ async def startup():
         print(f"[ASTRAVA API] RAG retriever unavailable: {e}")
         rag_retriever = None
     get_db()          # attempt Mongo connection on startup (non-fatal if down)
+
+    # ── Preload Ollama model into GPU/memory ──────────────────────────────────
+    print(f"[OLLAMA] Preloading model {OLLAMA_MODEL}...")
+    try:
+        base_url = OLLAMA_URL.rsplit("/api/chat", 1)[0]   # http://localhost:11434
+        # Check which models are currently loaded
+        ps_resp = http_requests.get(f"{base_url}/api/ps", timeout=5)
+        loaded = []
+        if ps_resp.status_code == 200:
+            loaded = [m.get("name", "") for m in ps_resp.json().get("models", [])]
+        if any(OLLAMA_MODEL in n for n in loaded):
+            print(f"[OLLAMA] Model {OLLAMA_MODEL} already loaded in memory.")
+        else:
+            # Send a tiny warm-up request to force Ollama to load the model
+            warmup = http_requests.post(
+                OLLAMA_URL,
+                json={"model": OLLAMA_MODEL, "messages": [{"role": "user", "content": "hi"}],
+                      "stream": False, "options": {"num_predict": 1}},
+                timeout=120,
+            )
+            if warmup.status_code == 200:
+                print(f"[OLLAMA] Model {OLLAMA_MODEL} preloaded successfully.")
+            else:
+                print(f"[OLLAMA] Warm-up returned status {warmup.status_code}")
+    except http_requests.ConnectionError:
+        print("[OLLAMA] WARNING: Cannot reach Ollama. Is it running?")
+    except Exception as e:
+        print(f"[OLLAMA] Preload warning (non-fatal): {e}")
+
     print("[ASTRAVA API] Ready.")
 
 # ── in-memory session store ───────────────────────────────────────────────────
