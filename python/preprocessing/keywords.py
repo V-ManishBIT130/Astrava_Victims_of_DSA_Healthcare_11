@@ -164,6 +164,54 @@ CRISIS_KEYWORDS = frozenset([
     "decided to end it",
     "i have a plan",
     "already decided",
+
+    # --- "die" variants the user might type ---
+    "i should die",
+    "i deserve to die",
+    "i need to die",
+    "just let me die",
+    "just die",
+    "please let me die",
+    "i would rather die",
+    "rather die",
+    "might as well die",
+    "i could just die",
+    "want to disappear",
+    "wish i could disappear",
+    "disappear forever",
+
+    # --- Indirect death / finality ---
+    "will not survive this",
+    "can not survive this",
+    "do not want to be alive",
+    "do not want to exist",
+    "do not want to live",
+    "do not want to be here",
+    "do not want to wake up",
+    "hope i do not wake up",
+    "today is my last day",
+    "this is my last night",
+    "will not see tomorrow",
+    "will not make it",
+    "not going to make it",
+    "no more fight left",
+    "no more strength",
+    "no more reasons",
+    "running out of reasons",
+    "nothing matters anymore",
+    "what is the point",
+    "no point anymore",
+    "just want it to stop",
+    "just want it to end",
+    "just want it to be over",
+    "make it stop",
+    "make the pain stop",
+    "i give up on life",
+    "i give up on everything",
+    "done fighting",
+    "done trying",
+    "too tired to continue",
+    "no energy left to live",
 ])
 
 
@@ -912,6 +960,40 @@ CRISIS_PATTERNS = {
         re.compile(r'\blet\s+me\s+die\b', re.I),
         re.compile(r'\bi\s+(just\s+)?want\s+death\b', re.I),
         re.compile(r'\btime\s+to\s+die\b', re.I),
+        # "i should die", "i deserve to die", "i need to die", "i have to die"
+        re.compile(r'\bi\s+(should|deserve\s+to|need\s+to|ought\s+to|have\s+to|must)\s+die\b', re.I),
+        # "just die", "please let me die", "just let me die"
+        re.compile(r'\b(just|please)(\s+let\s+me)?\s+die\b', re.I),
+        # "i'd rather die", "i would rather die", "rather die than"
+        re.compile(r'\b(i\s+would|i\s*\'?d)\s+rather\s+die\b', re.I),
+        re.compile(r'\brather\s+die\s+than\b', re.I),
+        # "might as well die", "may as well die"
+        re.compile(r'\b(might|may)\s+as\s+well\s+die\b', re.I),
+        # "i am going to die", "i could die" (with intent context)
+        re.compile(r'\bi\s+(could|can)\s+(just\s+)?die\b', re.I),
+        # "do not want to live/exist/be alive/be here/wake up"
+        re.compile(r'\bdo\s+not\s+want\s+to\s+(live|exist|be\s+alive|be\s+here|wake\s+up)\b', re.I),
+        # "want to disappear", "wish i could disappear"
+        re.compile(r'\b(want|wish\w*)\s+(to|i\s+could)\s+disappear\b', re.I),
+        # "hope i do not wake up", "hope i die"
+        re.compile(r'\bhope\s+i\s+(do\s+not\s+wake\s+up|die|do\s+not\s+survive)\b', re.I),
+        # "just want it to stop/end/be over"
+        re.compile(r'\bjust\s+want\s+(it\s+)?(all\s+)?(to\s+)?(stop|end|be\s+over)\b', re.I),
+        # "make it stop", "make the pain stop"
+        re.compile(r'\bmake\s+(it|the\s+pain|everything)\s+stop\b', re.I),
+        # Indirect: "will not be here tomorrow", "will not be around much longer"
+        re.compile(r'\bwill\s+not\s+be\s+(here|around|alive)\b', re.I),
+        re.compile(r'\bwill\s+not\s+(see|make\s+it\s+to)\s+tomorrow\b', re.I),
+        # "this is the end", "it will all be over soon"
+        re.compile(r'\bthis\s+is\s+(the\s+end|my\s+last)\b', re.I),
+        re.compile(r'\b(it\s+will|it\s*\'?ll)\s+(all\s+)?be\s+over\s+soon\b', re.I),
+        # "tonight is the night", "today is my last day"
+        re.compile(r'\btonight\s+is\s+the\s+night\b', re.I),
+        re.compile(r'\b(today|tonight)\s+is\s+my\s+last\b', re.I),
+        # "not going to survive this", "can not survive"
+        re.compile(r'\b(not\s+going\s+to|can\s*not|will\s+not)\s+survive\b', re.I),
+        # "i give up on life/living/everything"
+        re.compile(r'\bi\s+give\s+up\s+(on\s+)?(life|living|everything)\b', re.I),
     ],
 
     "SELF_HARM": [
@@ -935,9 +1017,17 @@ CRISIS_PATTERNS = {
         re.compile(r'\bno\s+one\s+will\s+(miss|notice|care)\s+(me|if\s+i)\b', re.I),
         re.compile(r'\bpills?\b.{0,20}\b(take|took|taken|swallow)\b', re.I | re.S),
         re.compile(r'\boverdo(se|sing|sed)?\b', re.I),
-        # Farewell combined with death/crisis context ("goodbye... die", "bye... end")
+        # Farewell combined with death/crisis context
         re.compile(r'\b(good\s*bye|bye\s*bye|farewell)\b.{0,40}\b(die|dead|death|end|kill)\b', re.I | re.S),
         re.compile(r'\b(die|dead|death|end|kill)\b.{0,40}\b(good\s*bye|bye\s*bye|farewell)\b', re.I | re.S),
+        # "made up my mind", "already decided", "decided to end it"
+        re.compile(r'\bmade\s+up\s+my\s+mind\b', re.I),
+        re.compile(r'\balready\s+decided\b', re.I),
+        re.compile(r'\bdecided\s+to\s+(end|die|kill)\b', re.I),
+        # "wrote my note", "writing my note", "left a note"
+        re.compile(r'\b(wrote|writing|left)\s+(my|a)\s+(note|letter|message)\b', re.I),
+        # "set a date", "picked a day"
+        re.compile(r'\b(set|picked|chosen|chose)\s+(a|the)\s+(date|day|time)\b.{0,30}\b(die|end|kill|leave)\b', re.I | re.S),
     ],
 
     "HOPELESSNESS": [
@@ -948,10 +1038,17 @@ CRISIS_PATTERNS = {
         re.compile(r'\balways\s+(feel|be|going\s+to\s+be)\s+(like\s+this|this\s+way)\b', re.I),
         re.compile(r"\bcan\s*'?t\s+go\s+on\b", re.I),
         re.compile(r'\bcant\s+go\s+on\b', re.I),
+        re.compile(r'\bcan\s*not\s+go\s+on\b', re.I),
         re.compile(r"\bcan\s*'?t\s+(keep\s+going|do\s+this\s+anymore)\b", re.I),
+        re.compile(r'\bcan\s*not\s+(keep\s+going|do\s+this\s+anymore|take\s+(it|this)\s+anymore)\b', re.I),
         re.compile(r'\bexhausted\s+(of|by|with)\s+(life|living|everything|existing)\b', re.I),
-        re.compile(r'\btired\s+of\s+(life|living|existing|being\s+alive)\b', re.I),
-        re.compile(r'\bdone\s+(with\s+everything|with\s+life|living)\b', re.I),
+        re.compile(r'\btired\s+of\s+(life|living|existing|being\s+alive|everything|fighting|trying)\b', re.I),
+        re.compile(r'\bdone\s+(with\s+everything|with\s+life|living|fighting|trying)\b', re.I),
+        re.compile(r'\bnothing\s+(matters|is\s+worth\s+it|will\s+change|ever\s+changes)\b', re.I),
+        re.compile(r'\bwhat\s+is\s+the\s+point\b', re.I),
+        re.compile(r'\bno\s+point\s+(anymore|in\s+anything|in\s+trying)\b', re.I),
+        re.compile(r'\brunning\s+out\s+of\s+(reasons|strength|hope)\b', re.I),
+        re.compile(r'\bno\s+more\s+(fight|strength|energy|will|reasons?)\s*(left|in\s+me)?\b', re.I),
     ],
 
     "ISOLATION": [

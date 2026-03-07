@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { ArrowUp, Shield, Lock, Eye, Users, ArrowRight } from 'lucide-react';
+import { ArrowUp, Shield, Lock, Eye, Users, ArrowRight, Mic, Volume2, VolumeX, MicOff, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import translations, { LANG_TO_BCP47 } from './translations';
 
 /* ═══════════════════════════════════════════════════════
    COLOR TOKENS — Blue palette, light background
@@ -98,7 +99,7 @@ function TypingIndicator() {
 /* ═══════════════════════════════════════════════════════
    MESSAGE BUBBLE
    ═══════════════════════════════════════════════════════ */
-function MessageBubble({ message, isBot }) {
+function MessageBubble({ message, isBot, isSpeaking, onSpeak, t }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16, scale: 0.97 }}
@@ -119,6 +120,32 @@ function MessageBubble({ message, isBot }) {
         }}
       >
         {message}
+        {isBot && onSpeak && (
+          <button
+            onClick={onSpeak}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 6px',
+              marginLeft: 8,
+              opacity: 0.5,
+              verticalAlign: 'middle',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
+            title={isSpeaking ? (t ? t('speakStop') : 'Stop speaking') : (t ? t('speakStart') : 'Read aloud')}
+          >
+            {isSpeaking
+              ? <VolumeX size={14} style={{ color: C.accent }} />
+              : <Volume2 size={14} style={{ color: C.muted }} />
+            }
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -127,12 +154,12 @@ function MessageBubble({ message, isBot }) {
 /* ═══════════════════════════════════════════════════════
    QUICK REPLY CHIPS
    ═══════════════════════════════════════════════════════ */
-function QuickChips({ onSelect, visible }) {
+function QuickChips({ onSelect, visible, t }) {
   const chips = [
-    'I needed to vent',
-    'Feeling anxious',
-    'Having a rough day',
-    'Not sure where to start',
+    t('chip1'),
+    t('chip2'),
+    t('chip3'),
+    t('chip4'),
   ];
   return (
     <AnimatePresence>
@@ -267,27 +294,27 @@ function FeaturesCarousel({ features, bgColor }) {
 /* ────────────────────────────────────────────────────────
    LANDING PAGE
    ──────────────────────────────────────────────────────── */
-function LandingPage({ onStart }) {
+function LandingPage({ onStart, t, appLang, setAppLang }) {
   const features = [
     {
       icon: Lock,
-      title: 'HIPAA-Grade Privacy',
-      desc: 'Your data is encrypted end-to-end. We follow HIPAA, SOC 2, and GDPR standards to keep every conversation secure.',
+      title: t('feat1Title'),
+      desc: t('feat1Desc'),
     },
     {
       icon: Shield,
-      title: 'Fully Anonymous',
-      desc: 'No account, no email, no phone number. Start talking with zero personal information required.',
+      title: t('feat2Title'),
+      desc: t('feat2Desc'),
     },
     {
       icon: Eye,
-      title: 'Your Data, Your Control',
-      desc: 'We never sell or share your data with third parties. You can delete your conversation history at any time.',
+      title: t('feat3Title'),
+      desc: t('feat3Desc'),
     },
     {
       icon: Users,
-      title: 'Human Escalation',
-      desc: 'If the conversation indicates a crisis, we connect you to real crisis counselors and emergency services.',
+      title: t('feat4Title'),
+      desc: t('feat4Desc'),
     },
   ];
 
@@ -319,23 +346,26 @@ function LandingPage({ onStart }) {
             color: C.heading,
           }}
         >
-          Solace
+          {t('brand')}
         </span>
-        <Button
-          onClick={onStart}
-          className="cursor-pointer"
-          style={{
-            fontFamily: font.body,
-            fontSize: 14,
-            fontWeight: 500,
-            background: C.accent,
-            color: '#fff',
-            borderRadius: 8,
-            padding: '10px 24px',
-          }}
-        >
-          Talk to us
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <LanguageSelector appLang={appLang} setAppLang={setAppLang} />
+          <Button
+            onClick={onStart}
+            className="cursor-pointer"
+            style={{
+              fontFamily: font.body,
+              fontSize: 14,
+              fontWeight: 500,
+              background: C.accent,
+              color: '#fff',
+              borderRadius: 8,
+              padding: '10px 24px',
+            }}
+          >
+            {t('navCta')}
+          </Button>
+        </div>
       </nav>
 
       {/* ─── HERO ─── */}
@@ -378,9 +408,9 @@ function LandingPage({ onStart }) {
               marginBottom: 24,
             }}
           >
-            You deserve to be
+            {t('heroHeading1')}
             <br />
-            <span style={{ fontStyle: 'italic', color: C.accent }}>heard.</span>
+            <span style={{ fontStyle: 'italic', color: C.accent }}>{t('heroHeading2')}</span>
           </h1>
         </motion.div>
 
@@ -400,8 +430,7 @@ function LandingPage({ onStart }) {
             marginBottom: 48,
           }}
         >
-          A safe, private space to talk about what you are feeling.
-          Solace listens, understands, and is here for you — always.
+          {t('heroSub')}
         </motion.p>
 
         <motion.div
@@ -431,7 +460,7 @@ function LandingPage({ onStart }) {
             whileHover={{ scale: 1.04, boxShadow: '0 8px 36px rgba(37,99,235,0.4)' }}
             whileTap={{ scale: 0.97 }}
           >
-            Talk to Solace
+            {t('heroCta')}
             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
           </motion.button>
         </motion.div>
@@ -449,7 +478,7 @@ function LandingPage({ onStart }) {
             marginTop: 20,
           }}
         >
-          Free and anonymous. No sign-up needed.
+          {t('heroNote')}
         </motion.p>
 
         {/* Scroll arrow */}
@@ -488,9 +517,9 @@ function LandingPage({ onStart }) {
                 marginBottom: 20,
               }}
             >
-              It takes{' '}
-              <span style={{ fontStyle: 'italic', color: C.accent }}>strength</span>{' '}
-              to reach out
+              {t('affirmHeading1')}
+              <span style={{ fontStyle: 'italic', color: C.accent }}>{t('affirmHighlight')}</span>
+              {t('affirmHeading2')}
             </h2>
           </Reveal>
           <Reveal delay={0.15}>
@@ -505,9 +534,7 @@ function LandingPage({ onStart }) {
                 margin: '0 auto',
               }}
             >
-              You are not broken. You are not too much. Whatever you are going through
-              right now — stress, anxiety, sadness — you do not have to face it alone.
-              Solace is here to listen, without judgment, whenever you need it.
+              {t('affirmBody')}
             </p>
           </Reveal>
         </div>
@@ -529,7 +556,7 @@ function LandingPage({ onStart }) {
                   marginBottom: 12,
                 }}
               >
-                Your Safety Comes First
+                {t('featuresBadge')}
               </span>
               <h2
                 style={{
@@ -539,8 +566,8 @@ function LandingPage({ onStart }) {
                   color: C.heading,
                 }}
               >
-                Built on{' '}
-                <span style={{ fontStyle: 'italic', color: C.accent }}>trust</span>
+                {t('featuresHeading1')}
+                <span style={{ fontStyle: 'italic', color: C.accent }}>{t('featuresHighlight')}</span>
               </h2>
             </div>
           </Reveal>
@@ -565,7 +592,7 @@ function LandingPage({ onStart }) {
                   marginBottom: 12,
                 }}
               >
-                Simple by Design
+                {t('stepsBadge')}
               </span>
               <h2
                 style={{
@@ -575,15 +602,15 @@ function LandingPage({ onStart }) {
                   color: C.heading,
                 }}
               >
-                Three steps. That is it.
+                {t('stepsHeading')}
               </h2>
             </div>
           </Reveal>
 
           {[
-            { num: '01', title: 'Start talking', desc: 'Click the button. No account, no forms, no barriers. You begin immediately.' },
-            { num: '02', title: 'Solace listens', desc: 'Our AI understands how you are feeling and responds with genuine empathy and care.' },
-            { num: '03', title: 'You decide', desc: 'Save the conversation to come back later, or leave. It is entirely up to you.' },
+            { num: '01', title: t('step1Title'), desc: t('step1Desc') },
+            { num: '02', title: t('step2Title'), desc: t('step2Desc') },
+            { num: '03', title: t('step3Title'), desc: t('step3Desc') },
           ].map((step, i) => (
             <Reveal key={i} delay={i * 0.12}>
               <div
@@ -650,11 +677,11 @@ function LandingPage({ onStart }) {
                 marginBottom: 16,
               }}
             >
-              You have already taken
+              {t('ctaHeading1')}
               <br />
-              the{' '}
-              <span style={{ fontStyle: 'italic', color: C.accent }}>hardest</span>{' '}
-              step
+              {t('ctaHeading2')}
+              <span style={{ fontStyle: 'italic', color: C.accent }}>{t('ctaHighlight')}</span>
+              {t('ctaHeading3')}
             </h2>
           </Reveal>
           <Reveal delay={0.15}>
@@ -669,8 +696,7 @@ function LandingPage({ onStart }) {
                 margin: '0 auto 40px',
               }}
             >
-              Acknowledging that something feels off is brave.
-              Let Solace meet you where you are.
+              {t('ctaBody')}
             </p>
           </Reveal>
           <Reveal delay={0.3}>
@@ -694,7 +720,7 @@ function LandingPage({ onStart }) {
               whileHover={{ scale: 1.04, boxShadow: '0 8px 36px rgba(37,99,235,0.4)' }}
               whileTap={{ scale: 0.97 }}
             >
-              Talk to Solace
+              {t('ctaBtn')}
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </motion.button>
           </Reveal>
@@ -717,8 +743,7 @@ function LandingPage({ onStart }) {
             color: C.muted,
           }}
         >
-          SOLACE IS NOT A REPLACEMENT FOR PROFESSIONAL THERAPY.
-          IF YOU ARE IN CRISIS, CONTACT EMERGENCY SERVICES.
+          {t('footer')}
         </p>
       </footer>
     </motion.div>
@@ -728,7 +753,7 @@ function LandingPage({ onStart }) {
 /* ═══════════════════════════════════════════════════════
    CHAT PAGE
    ═══════════════════════════════════════════════════════ */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // stable session id for this browser tab
 const SESSION_ID = (() => {
@@ -738,14 +763,14 @@ const SESSION_ID = (() => {
 })();
 
 /* ════════════════════════════════════════════════════════
-   THERAPIST CARD
+   THERAPIST CARD — 3-step flow for MEDIUM risk
    ════════════════════════════════════════════════════════ */
-function TherapistCard({ onClose, onDone }) {
-  const [step, setStep] = useState('prompt'); // 'prompt' | 'form' | 'done'
-  const [form, setForm] = useState({ name: '', email: '', preference: '', migrate: true });
+function TherapistCard({ onClose, onDone, t }) {
+  // 'ask' → 'share' → 'notified' | 'notified_no_data'
+  const [step, setStep] = useState('ask');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
+  const notifyTherapist = async (shareData) => {
     setSubmitting(true);
     try {
       await fetch(`${API_URL}/api/request-therapist`, {
@@ -753,23 +778,15 @@ function TherapistCard({ onClose, onDone }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id:   SESSION_ID,
-          name:         form.name  || null,
-          email:        form.email || null,
-          preference:   form.preference || null,
-          migrate_chat: form.migrate,
+          migrate_chat: shareData,
         }),
       });
     } catch (_) {}
-    setStep('done');
-    setTimeout(onDone, 5000);
+    setStep(shareData ? 'notified' : 'notified_no_data');
+    setSubmitting(false);
+    setTimeout(onDone, 4000);
   };
 
-  const inputStyle = {
-    display: 'block', width: '100%', fontFamily: font.body, fontSize: 14,
-    color: C.heading, background: C.bg, border: `1px solid ${C.border}`,
-    borderRadius: 8, padding: '9px 12px', marginBottom: 10, outline: 'none',
-    boxSizing: 'border-box',
-  };
   const primaryBtn = {
     fontFamily: font.body, fontSize: 13, fontWeight: 600,
     background: C.accent, color: '#fff', border: 'none',
@@ -797,69 +814,51 @@ function TherapistCard({ onClose, onDone }) {
         fontFamily: font.body,
       }}
     >
-      {step === 'prompt' && (
+      {step === 'ask' && (
         <>
           <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: '0 0 16px' }}>
-            Would you like to connect with a real therapist — online or in person?
+            {t('therapistAsk')}
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => setStep('form')} style={primaryBtn}>Yes, connect me</button>
-            <button onClick={onClose} style={ghostBtn}>Maybe later</button>
+            <button onClick={() => setStep('share')} style={primaryBtn}>{t('therapistYes')}</button>
+            <button onClick={onClose} style={ghostBtn}>{t('therapistNo')}</button>
           </div>
         </>
       )}
 
-      {step === 'form' && (
+      {step === 'share' && (
         <>
-          <p style={{ fontSize: 14, fontWeight: 600, color: C.heading, margin: '0 0 14px' }}>
-            A few details to arrange things
+          <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: '0 0 16px' }}>
+            {t('therapistShare')}
           </p>
-          <input
-            type="text" placeholder="Your name (optional)" value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            style={inputStyle}
-          />
-          <input
-            type="email" placeholder="Email address (optional)" value={form.email}
-            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            style={inputStyle}
-          />
-          <p style={{ fontFamily: font.mono, fontSize: 11, letterSpacing: '0.06em', color: C.muted, margin: '0 0 8px', textTransform: 'uppercase' }}>Preference</p>
-          {[['online', 'Online'], ['in_person', 'In person'], ['', 'No preference']].map(([val, label]) => (
-            <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer', fontSize: 13, color: C.body }}>
-              <input
-                type="radio" name="th-pref" value={val}
-                checked={form.preference === val}
-                onChange={() => setForm((p) => ({ ...p, preference: val }))}
-                style={{ accentColor: C.accent }}
-              />
-              {label}
-            </label>
-          ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.body, cursor: 'pointer', margin: '12px 0 18px' }}>
-            <input
-              type="checkbox" checked={form.migrate}
-              onChange={(e) => setForm((p) => ({ ...p, migrate: e.target.checked }))}
-              style={{ accentColor: C.accent, width: 15, height: 15 }}
-            />
-            Share this conversation with the therapist
-          </label>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={handleSubmit} disabled={submitting}
-              style={{ ...primaryBtn, opacity: submitting ? 0.7 : 1, cursor: submitting ? 'default' : 'pointer' }}
+              onClick={() => notifyTherapist(true)}
+              disabled={submitting}
+              style={{ ...primaryBtn, opacity: submitting ? 0.7 : 1 }}
             >
-              {submitting ? 'Sending...' : 'Connect me'}
+              {submitting ? t('therapistNotifying') : t('therapistYes')}
             </button>
-            <button onClick={() => setStep('prompt')} style={ghostBtn}>Back</button>
+            <button
+              onClick={() => notifyTherapist(false)}
+              disabled={submitting}
+              style={{ ...ghostBtn, opacity: submitting ? 0.7 : 1 }}
+            >
+              {t('therapistNo')}
+            </button>
           </div>
         </>
       )}
 
-      {step === 'done' && (
+      {step === 'notified' && (
         <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: 0 }}>
-          Done. We will be in touch{form.email ? ` at ${form.email}` : ''}.
-          {form.migrate ? ' This conversation is ready for the therapist to review.' : ''}
+          {t('therapistNotified')}
+        </p>
+      )}
+
+      {step === 'notified_no_data' && (
+        <p style={{ fontSize: 14, color: C.body, lineHeight: 1.65, margin: 0 }}>
+          {t('therapistNotifiedNoData')}
         </p>
       )}
     </motion.div>
@@ -869,7 +868,7 @@ function TherapistCard({ onClose, onDone }) {
 /* ═══════════════════════════════════════════════════════
    CRISIS OVERLAY — blocks chat and shows help
    ═══════════════════════════════════════════════════════ */
-function CrisisOverlay({ hasLocation, onResume }) {
+function CrisisOverlay({ hasLocation, onResume, t }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -913,15 +912,14 @@ function CrisisOverlay({ hasLocation, onResume }) {
           fontFamily: font.serif, fontSize: 26, fontWeight: 400,
           color: '#0f172a', margin: '0 0 10px',
         }}>
-          We are here for you
+          {t('crisisTitle')}
         </h2>
 
         <p style={{
           fontFamily: font.body, fontSize: 15, color: '#475569',
           lineHeight: 1.65, margin: '0 0 20px',
         }}>
-          It sounds like you are going through something really difficult right now.
-          You do not have to face this alone.
+          {t('crisisBody')}
         </p>
 
         {hasLocation && (
@@ -934,7 +932,7 @@ function CrisisOverlay({ hasLocation, onResume }) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Your location has been shared with a healthcare worker
+            {t('crisisLocationShared')}
           </div>
         )}
 
@@ -947,7 +945,7 @@ function CrisisOverlay({ hasLocation, onResume }) {
             fontFamily: font.mono, fontSize: 11, letterSpacing: '0.06em',
             color: '#94a3b8', textTransform: 'uppercase', margin: '0 0 10px',
           }}>
-            CRISIS HELPLINES
+            {t('crisisHelplines')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
@@ -978,8 +976,7 @@ function CrisisOverlay({ hasLocation, onResume }) {
           fontFamily: font.body, fontSize: 13, color: '#64748b',
           lineHeight: 1.6, margin: '0 0 20px',
         }}>
-          Please reach out to any of these helplines. A trained counselor is
-          available to talk to you right now.
+          {t('crisisHelp')}
         </p>
 
         <button
@@ -991,14 +988,14 @@ function CrisisOverlay({ hasLocation, onResume }) {
             padding: '9px 20px', cursor: 'pointer',
           }}
         >
-          I understand, continue chatting
+          {t('crisisResume')}
         </button>
       </motion.div>
     </motion.div>
   );
 }
 
-function ChatPage() {
+function ChatPage({ t, appLang, setAppLang }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -1016,9 +1013,27 @@ function ChatPage() {
   // therapist offer
   const [showTherapistCard, setShowTherapistCard] = useState(false);
   const [therapistDone, setTherapistDone] = useState(false);
+  // voice
+  const [isListening, setIsListening] = useState(false);
+  const [detectedLang, setDetectedLang] = useState(null);     // BCP-47 from STT
+  const [speakingMsgId, setSpeakingMsgId] = useState(null);    // which bot msg is being spoken
+  const recognitionRef = useRef(null);
+  const voicesRef = useRef([]);  // preloaded TTS voices
+  const fallbackAudioRef = useRef(null); // for Google Translate TTS fallback
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
   const hasSaveTriggered = useRef(false);
+
+  // Preload TTS voices (they load async in most browsers)
+  useEffect(() => {
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length) voicesRef.current = v;
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -1066,7 +1081,7 @@ function ChatPage() {
       setIsTyping(false);
       setMessages([{
         id: 1,
-        text: "Hey, I am glad you are here. There is no right or wrong way to start \u2014 just share whatever is on your mind.",
+        text: t('openingMsg1'),
         isBot: true,
         time: now(),
       }]);
@@ -1077,7 +1092,7 @@ function ChatPage() {
       setIsTyping(false);
       setMessages((prev) => [...prev, {
         id: 2,
-        text: "Take your time. I am not going anywhere.",
+        text: t('openingMsg2'),
         isBot: true,
         time: now(),
       }]);
@@ -1109,6 +1124,7 @@ function ChatPage() {
             session_id: SESSION_ID,
             message:    trimmed,
             ...(userLocation && { location: userLocation }),
+            language: LANG_TO_BCP47[appLang],
           }),
         });
 
@@ -1118,7 +1134,7 @@ function ChatPage() {
 
         if (data.alert_sent) setAlertSent(true);
         if (data.danger) setCrisisActive(true);
-        if (data.therapist_offered && !therapistDone) setShowTherapistCard(true);
+        if (data.ask_therapist_contact && !therapistDone) setShowTherapistCard(true);
 
         setMessages((prev) => [...prev, {
           id:       Date.now() + 1,
@@ -1141,14 +1157,201 @@ function ChatPage() {
         setIsTyping(false);
         setMessages((prev) => [...prev, {
           id:    Date.now() + 1,
-          text:  "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+          text:  t('errorMsg'),
           isBot: true,
           time:  now(),
         }]);
       }
     },
-    [input, isTyping, userMsgCount, crisisActive]
+    [input, isTyping, userMsgCount, crisisActive, appLang]
   );
+
+  /* ── Voice input (Web Speech API — STT) ────────────────────────── */
+
+  // Simple script-based language detection from transcript text
+  const detectLanguage = (text) => {
+    if (/[\u0900-\u097F]/.test(text)) return 'hi-IN';    // Devanagari → Hindi
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te-IN';    // Telugu
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn-IN';    // Kannada
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta-IN';    // Tamil
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'ml-IN';    // Malayalam
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn-IN';    // Bengali
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa-IN';    // Punjabi
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu-IN';    // Gujarati
+    if (/[\u0B00-\u0B7F]/.test(text)) return 'or-IN';    // Odia
+    if (/[\u0600-\u06FF]/.test(text)) return 'ur-IN';    // Urdu/Arabic
+    if (/[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)) return 'ja-JP'; // Japanese
+    if (/[\uAC00-\uD7AF]/.test(text)) return 'ko-KR';    // Korean
+    if (/[\u0E00-\u0E7F]/.test(text)) return 'th-TH';    // Thai
+    if (/[А-Яа-яЁё]/.test(text)) return 'ru-RU';         // Russian
+    if (/[àâéèêëïîôùûüÿçœæ]/i.test(text)) return 'fr-FR'; // French
+    if (/[äöüßÄÖÜ]/.test(text)) return 'de-DE';           // German
+    if (/[ñáéíóúü¿¡]/i.test(text)) return 'es-ES';        // Spanish
+    return 'en-US';
+  };
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.error('[Voice] SpeechRecognition not supported in this browser');
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.lang = LANG_TO_BCP47[appLang] || 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => console.log('[Voice] Listening started, lang =', rec.lang);
+
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      console.log('[Voice] Got transcript:', transcript);
+      const lang = detectLanguage(transcript);
+      console.log('[Voice] Detected language:', lang);
+      setDetectedLang(lang);
+      setInput((prev) => prev ? prev + ' ' + transcript : transcript);
+      setIsListening(false);
+    };
+
+    rec.onnomatch = () => {
+      console.warn('[Voice] No speech match');
+      setIsListening(false);
+    };
+
+    rec.onerror = (e) => {
+      console.error('[Voice] STT error:', e.error, e.message);
+      setIsListening(false);
+    };
+
+    rec.onend = () => {
+      console.log('[Voice] Recognition ended');
+      setIsListening(false);
+    };
+
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setIsListening(true);
+    } catch (err) {
+      console.error('[Voice] Failed to start:', err);
+      setIsListening(false);
+    }
+  }, [isListening, appLang]);
+
+  /* ── Voice output (Web Speech API — TTS) ────────────────────────── */
+
+  // Server-side TTS proxy fallback for languages without a native browser voice
+  const speakWithGoogleTTS = useCallback((text, langCode, msgId) => {
+    // Backend proxy has 200 char limit; chunk the text
+    const maxLen = 180;
+    const chunks = [];
+    let remaining = text;
+    while (remaining.length > 0) {
+      chunks.push(remaining.substring(0, maxLen));
+      remaining = remaining.substring(maxLen);
+    }
+
+    setSpeakingMsgId(msgId);
+    let idx = 0;
+
+    const playNext = () => {
+      if (idx >= chunks.length) {
+        setSpeakingMsgId(null);
+        fallbackAudioRef.current = null;
+        return;
+      }
+      const encoded = encodeURIComponent(chunks[idx]);
+      const url = `${API_URL}/api/tts?text=${encoded}&lang=${langCode}`;
+      const audio = new Audio(url);
+      fallbackAudioRef.current = audio;
+      audio.onended = () => { idx++; playNext(); };
+      audio.onerror = () => {
+        console.error('[TTS Fallback] Audio error for chunk', idx);
+        setSpeakingMsgId(null);
+        fallbackAudioRef.current = null;
+      };
+      audio.play().catch((err) => {
+        console.error('[TTS Fallback] Play failed:', err);
+        setSpeakingMsgId(null);
+        fallbackAudioRef.current = null;
+      });
+    };
+
+    playNext();
+  }, []);
+
+  const speakText = useCallback((text, msgId, lang) => {
+    // Toggle off — stop any active speech
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      if (fallbackAudioRef.current) {
+        fallbackAudioRef.current.pause();
+        fallbackAudioRef.current = null;
+      }
+      setSpeakingMsgId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    if (fallbackAudioRef.current) {
+      fallbackAudioRef.current.pause();
+      fallbackAudioRef.current = null;
+    }
+
+    const langPrefix = lang ? lang.split('-')[0] : 'en';
+    const voices = voicesRef.current.length ? voicesRef.current : window.speechSynthesis.getVoices();
+
+    // Check if a native voice exists for this language
+    const exact = lang && voices.find((v) => v.lang.toLowerCase() === lang.toLowerCase());
+    const prefix = !exact && lang && voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
+    const match = exact || prefix;
+
+    if (!match && langPrefix !== 'en') {
+      // No native voice available — use Google Translate TTS fallback
+      console.log('[TTS] No native voice for', lang, '— using Google Translate TTS fallback');
+      speakWithGoogleTTS(text, langPrefix, msgId);
+      return;
+    }
+
+    // Native TTS
+    const utterance = new SpeechSynthesisUtterance(text);
+    if (lang) utterance.lang = lang;
+    if (match) {
+      utterance.voice = match;
+      console.log('[TTS] Using native voice:', match.name, match.lang);
+    }
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.onend = () => setSpeakingMsgId(null);
+    utterance.onerror = (e) => {
+      console.warn('[TTS] Native speech error:', e.error, '— trying Google Translate fallback');
+      // Fallback to Google Translate on error
+      if (langPrefix !== 'en') {
+        speakWithGoogleTTS(text, langPrefix, msgId);
+      } else {
+        setSpeakingMsgId(null);
+      }
+    };
+
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  }, [speakingMsgId, speakWithGoogleTTS]);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      recognitionRef.current?.stop();
+      if (fallbackAudioRef.current) { fallbackAudioRef.current.pause(); fallbackAudioRef.current = null; }
+    };
+  }, []);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1201,7 +1404,7 @@ function ChatPage() {
               color: C.heading,
             }}
           >
-            Solace
+            {t('brand')}
           </span>
           <span
             style={{
@@ -1212,10 +1415,11 @@ function ChatPage() {
               marginLeft: 4,
             }}
           >
-            online
+            {t('chatOnline')}
           </span>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LanguageSelector appLang={appLang} setAppLang={setAppLang} />
           {showSaveBtn && (
             <Button
               variant="outline"
@@ -1231,7 +1435,7 @@ function ChatPage() {
                 borderColor: C.border,
               }}
             >
-              Save chat
+              {t('saveChat')}
             </Button>
           )}
         </div>
@@ -1260,7 +1464,7 @@ function ChatPage() {
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
                 <circle cx="12" cy="9" r="2.5"/>
               </svg>
-              Share your location so a helper can reach you if things get critical
+              {t('locPrompt')}
             </span>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               <button
@@ -1271,7 +1475,7 @@ function ChatPage() {
                   border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer',
                 }}
               >
-                Allow
+                {t('locAllow')}
               </button>
               <button
                 onClick={() => setLocationBanner('denied')}
@@ -1282,7 +1486,7 @@ function ChatPage() {
                   padding: '5px 12px', cursor: 'pointer',
                 }}
               >
-                Not now
+                {t('locNotNow')}
               </button>
             </div>
           </motion.div>
@@ -1307,7 +1511,7 @@ function ChatPage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Location shared — emergency alerts enabled
+            {t('locGranted')}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1335,7 +1539,7 @@ function ChatPage() {
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            Emergency alert sent — a helper has been notified of your location
+            {t('alertSent')}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1352,11 +1556,14 @@ function ChatPage() {
                 key={msg.id}
                 message={msg.text}
                 isBot={msg.isBot}
+                isSpeaking={speakingMsgId === msg.id}
+                onSpeak={msg.isBot ? () => speakText(msg.text, msg.id, LANG_TO_BCP47[appLang]) : undefined}
+                t={t}
               />
             ))}
           </AnimatePresence>
 
-          <QuickChips visible={showChips} onSelect={(chip) => handleSend(chip)} />
+          <QuickChips visible={showChips} onSelect={(chip) => handleSend(chip)} t={t} />
 
           <AnimatePresence>{isTyping && <TypingIndicator />}</AnimatePresence>
 
@@ -1365,6 +1572,7 @@ function ChatPage() {
               <TherapistCard
                 onClose={() => setShowTherapistCard(false)}
                 onDone={() => { setShowTherapistCard(false); setTherapistDone(true); }}
+                t={t}
               />
             )}
           </AnimatePresence>
@@ -1397,13 +1605,41 @@ function ChatPage() {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
+            {/* Mic button */}
+            <motion.button
+              onClick={toggleListening}
+              disabled={crisisActive}
+              className="cursor-pointer"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: 'none',
+                background: isListening ? '#22c55e' : C.surface2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: crisisActive ? 'default' : 'pointer',
+                flexShrink: 0,
+                marginBottom: 2,
+                transition: 'background 0.2s',
+              }}
+              whileHover={!crisisActive ? { scale: 1.08 } : {}}
+              whileTap={!crisisActive ? { scale: 0.92 } : {}}
+              title={isListening ? t('micStop') : t('micStart')}
+            >
+              {isListening
+                ? <Mic size={16} style={{ color: '#ffffff' }} />
+                : <MicOff size={16} style={{ color: C.muted }} />
+              }
+            </motion.button>
             <textarea
               ref={textareaRef}
               value={input}
               onChange={handleTextarea}
               onKeyDown={handleKeyDown}
               disabled={crisisActive}
-              placeholder={crisisActive ? "Chat paused — please use the helplines above" : "Say anything..."}
+              placeholder={crisisActive ? t('inputCrisis') : t('inputPlaceholder')}
               rows={1}
               style={{
                 flex: 1,
@@ -1456,7 +1692,7 @@ function ChatPage() {
               marginTop: 10,
             }}
           >
-            Not a crisis service — call emergency services if you are in danger
+            {t('disclaimer')}
           </p>
         </div>
       </div>
@@ -1483,7 +1719,7 @@ function ChatPage() {
                   color: C.heading,
                 }}
               >
-                Save this session
+                {t('saveTitle')}
               </DialogTitle>
               <DialogDescription
                 style={{
@@ -1493,7 +1729,7 @@ function ChatPage() {
                   marginTop: 6,
                 }}
               >
-                Pick up where you left off next time.
+                {t('saveDesc')}
               </DialogDescription>
             </DialogHeader>
 
@@ -1509,16 +1745,16 @@ function ChatPage() {
               }}
             >
               <div className="flex justify-between">
-                <span>Messages</span>
+                <span>{t('saveMessages')}</span>
                 <span style={{ color: C.heading, fontWeight: 500 }}>{messages.length}</span>
               </div>
               <div className="flex justify-between">
-                <span>Duration</span>
+                <span>{t('saveDuration')}</span>
                 <span style={{ color: C.heading, fontWeight: 500 }}>{elapsed()}</span>
               </div>
               <div className="flex justify-between">
-                <span>Session</span>
-                <span style={{ color: C.heading, fontWeight: 500 }}>Anonymous</span>
+                <span>{t('saveSession')}</span>
+                <span style={{ color: C.heading, fontWeight: 500 }}>{t('saveAnon')}</span>
               </div>
             </div>
 
@@ -1538,7 +1774,7 @@ function ChatPage() {
                   padding: '13px 0',
                 }}
               >
-                Create account to save
+                {t('saveCreate')}
               </Button>
               <Button
                 variant="ghost"
@@ -1552,7 +1788,7 @@ function ChatPage() {
                   borderRadius: 10,
                 }}
               >
-                End session
+                {t('saveEnd')}
               </Button>
             </DialogFooter>
           </div>
@@ -1564,6 +1800,7 @@ function ChatPage() {
         {crisisActive && (
           <CrisisOverlay
             hasLocation={!!userLocation}
+            t={t}
             onResume={() => setCrisisActive(false)}
           />
         )}
@@ -1575,15 +1812,53 @@ function ChatPage() {
 /* ═══════════════════════════════════════════════════════
    APP ROOT
    ═══════════════════════════════════════════════════════ */
+/* ─── LANGUAGE SELECTOR ─── */
+const LANG_OPTIONS = [
+  { code: 'en', label: 'EN', full: 'English' },
+  { code: 'hi', label: 'हि', full: 'हिन्दी' },
+  { code: 'kn', label: 'ಕ', full: 'ಕನ್ನಡ' },
+];
+
+function LanguageSelector({ appLang, setAppLang }) {
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <Globe size={14} style={{ color: C.muted, marginRight: 4 }} />
+      {LANG_OPTIONS.map((opt) => (
+        <button
+          key={opt.code}
+          onClick={() => setAppLang(opt.code)}
+          title={opt.full}
+          style={{
+            fontFamily: font.body,
+            fontSize: 12,
+            fontWeight: appLang === opt.code ? 700 : 400,
+            color: appLang === opt.code ? '#fff' : C.body,
+            background: appLang === opt.code ? C.accent : 'transparent',
+            border: appLang === opt.code ? 'none' : `1px solid ${C.border}`,
+            borderRadius: 6,
+            padding: '4px 10px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState('landing');
+  const [appLang, setAppLang] = useState('en');
+  const t = (key) => (translations[appLang] && translations[appLang][key]) || translations.en[key] || key;
 
   return (
     <AnimatePresence mode="wait">
       {page === 'landing' ? (
-        <LandingPage key="landing" onStart={() => setPage('chat')} />
+        <LandingPage key="landing" onStart={() => setPage('chat')} t={t} appLang={appLang} setAppLang={setAppLang} />
       ) : (
-        <ChatPage key="chat" />
+        <ChatPage key="chat" t={t} appLang={appLang} setAppLang={setAppLang} />
       )}
     </AnimatePresence>
   );

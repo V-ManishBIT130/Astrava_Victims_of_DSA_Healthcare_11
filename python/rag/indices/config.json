@@ -1,0 +1,9 @@
+{
+  "model_name": "all-MiniLM-L6-v2",
+  "dimension": 384,
+  "total_vectors": 16057,
+  "embed_field": "question",
+  "dataset": "ShenLab/MentalChat16K",
+  "normalize": true,
+  "metric": "cosine (inner product on L2-normalised vectors)"
+}

@@ -14,6 +14,7 @@ import json
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"]  = "3"   # suppress TF info/warnings
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+import re
 import smtplib
 import sys
 import time
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests as http_requests
+from deep_translator import GoogleTranslator
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -110,6 +112,7 @@ from chatbot import (
     evict_old_turns,
 )
 from run_inference import AstravaInference
+from rag.retriever import MentalHealthRetriever
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="ASTRAVA API", version="1.0")
@@ -139,13 +142,20 @@ app.add_middleware(
 
 # ── global singletons (loaded once at startup) ────────────────────────────────
 inference_engine: AstravaInference = None
+rag_retriever: MentalHealthRetriever = None
 
 @app.on_event("startup")
 async def startup():
-    global inference_engine
+    global inference_engine, rag_retriever
     print(f"[ASTRAVA API] Using Ollama  model={OLLAMA_MODEL}  url={OLLAMA_URL}")
     print("[ASTRAVA API] Loading ML pipeline (this takes ~10s)...")
     inference_engine = AstravaInference()
+    try:
+        rag_retriever = MentalHealthRetriever()
+        print("[ASTRAVA API] RAG retriever loaded.")
+    except FileNotFoundError as e:
+        print(f"[ASTRAVA API] RAG retriever unavailable: {e}")
+        rag_retriever = None
     get_db()          # attempt Mongo connection on startup (non-fatal if down)
     print("[ASTRAVA API] Ready.")
 
@@ -164,6 +174,7 @@ def get_session(session_id: str) -> dict:
             "alert_sent":          False,
             "crisis_email_sent":   False,
             "therapist_offered":   False,
+            "rag_medium_count":    0,      # how many times RAG fired for MEDIUM risk
             "anon_uid":            anon_uid,
             "started_at":          datetime.now(timezone.utc),
         }
@@ -333,6 +344,70 @@ def send_crisis_email(session_id: str, user_message: str, recent_turns: list[dic
         return False
 
 
+def send_therapist_email(session_id: str, migrate_chat: bool, recent_turns: list[dict]) -> bool:
+    """Send a therapist referral notification email for MEDIUM-risk patients."""
+    if not CRISIS_EMAIL_READY:
+        print("[THERAPIST EMAIL] Credentials not configured — skipping.", flush=True)
+        return False
+
+    short_id = session_id[:8]
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    share_note = "The patient has <b>agreed</b> to share conversation data." if migrate_chat else "The patient has <b>declined</b> to share conversation data."
+
+    convo_lines = ""
+    if migrate_chat:
+        for t in recent_turns[-6:]:
+            convo_lines += (
+                f'<tr><td style="padding:6px 10px;color:#1e293b;"><b>Patient:</b> {t["user"][:200]}</td></tr>'
+                f'<tr><td style="padding:6px 10px;color:#475569;"><b>Solace:</b> {t.get("assistant","")[:200]}</td></tr>'
+            )
+
+    convo_section = ""
+    if migrate_chat and convo_lines:
+        convo_section = f"""
+        <h3 style="color:#1e293b;font-size:14px;margin:18px 0 8px;border-bottom:1px solid #93c5fd;padding-bottom:6px;">Recent Conversation</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:6px;overflow:hidden;">
+          {convo_lines}
+        </table>
+        """
+
+    html_body = f"""
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <div style="background:#2563eb;color:#fff;padding:18px 24px;border-radius:10px 10px 0 0;">
+        <h2 style="margin:0;font-size:20px;">ASTRAVA — Therapist Referral</h2>
+      </div>
+      <div style="background:#eff6ff;padding:20px 24px;border:1px solid #93c5fd;border-top:none;border-radius:0 0 10px 10px;">
+        <p style="color:#1e40af;font-size:15px;font-weight:600;margin:0 0 12px;">
+          A patient with moderate distress has requested to connect with a therapist.
+        </p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+          <tr><td style="padding:4px 0;color:#64748b;width:130px;">Session</td><td style="padding:4px 0;color:#0f172a;font-weight:600;">{short_id}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;">Time</td><td style="padding:4px 0;color:#0f172a;">{timestamp}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;">Data Sharing</td><td style="padding:4px 0;color:#0f172a;">{share_note}</td></tr>
+        </table>
+        {convo_section}
+        <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">
+          Sent automatically by ASTRAVA Mental Health Platform. Do not reply.
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        yag = yagmail.SMTP(CRISIS_EMAIL_FROM, CRISIS_EMAIL_PASSWORD)
+        yag.send(
+            to=CRISIS_EMAIL_TO,
+            subject=f"[ASTRAVA REFERRAL] Patient requests therapist — session {short_id}",
+            contents=html_body,
+        )
+        yag.close()
+        print(f"[THERAPIST EMAIL] Sent to {CRISIS_EMAIL_TO} for session {short_id}", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[THERAPIST EMAIL] Failed: {exc}", flush=True)
+        return False
+
+
 class LocationPayload(BaseModel):
     lat: float
     lng: float
@@ -341,6 +416,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message:    str
     location:   Optional[LocationPayload] = None
+    language:   Optional[str] = None      # BCP-47 lang code from Web Speech API (e.g. "hi-IN", "te-IN")
 
 class TherapistRequest(BaseModel):
     session_id:   str
@@ -364,6 +440,7 @@ class ChatResponse(BaseModel):
     danger:             bool
     alert_sent:         bool = False
     therapist_offered:  bool = False
+    ask_therapist_contact: bool = False
 
 # ── main chat endpoint ────────────────────────────────────────────────────────
 @app.post("/api/chat", response_model=ChatResponse)
@@ -382,8 +459,17 @@ async def chat(req: ChatRequest):
     if req.location:
         print(f"[LOCATION] Got GPS coordinates  lat={req.location.lat:.6f}  lng={req.location.lng:.6f}")
 
-    # ── ML pipeline ───────────────────────────────────────────────────────────
-    ml_result  = inference_engine.run(req.message)
+    # ── Translate non-English messages to English for ML analysis ─────────────
+    analysis_text = req.message
+    if req.language and not req.language.lower().startswith("en"):
+        try:
+            analysis_text = GoogleTranslator(source='auto', target='en').translate(req.message)
+            print(f"[TRANSLATE] {req.language} → EN: {analysis_text[:100]!r}")
+        except Exception as e:
+            print(f"[TRANSLATE] Translation failed, using original: {e}")
+
+    # ── ML pipeline (runs on English text for accurate detection) ─────────────
+    ml_result  = inference_engine.run(analysis_text)
     crisis_now = is_danger(ml_result)
 
     final_label = None
@@ -429,6 +515,33 @@ async def chat(req: ChatRequest):
         final_score = ml_score
         rag         = rag_decision(final_label, crisis_now)
 
+    # ── RAG retrieval (when rag is "yes" or "pending") ────────────────────────
+    rag_fired = False
+    if rag in ("yes", "pending") and rag_retriever is not None:
+        try:
+            rag_results = rag_retriever.retrieve(analysis_text, top_k=3)
+            rag_text = rag_retriever.format_for_llm(rag_results)
+            if rag_text:
+                enriched_content += (
+                    "\n\n[CLINICAL REFERENCE — ground your response in these therapeutic approaches, "
+                    "DO NOT copy verbatim, adapt to this person]\n" + rag_text
+                )
+                rag_fired = True
+                if rag == "pending":   # MEDIUM risk
+                    sess["rag_medium_count"] += 1
+                print(f"[RAG] Retrieved {len(rag_results)} references  "
+                      f"top_score={rag_results[0]['score']:.3f}  "
+                      f"medium_count={sess['rag_medium_count']}", flush=True)
+        except Exception as e:
+            print(f"[RAG] Retrieval failed: {e}", flush=True)
+
+    # ── Language instruction (when user spoke in a non-English language) ────
+    if req.language and not req.language.lower().startswith("en"):
+        enriched_content += (
+            f"\n\n[LANGUAGE INSTRUCTION — the user spoke in language code '{req.language}'. "
+            f"Respond in THAT language. Keep it natural and warm.]"
+        )
+
     # ── Build windowed payload + call Ollama ──────────────────────────────────
     llm_messages = build_llm_payload(
         SYSTEM_PROMPT, sess["summary"], sess["turns_history"], enriched_content,
@@ -442,9 +555,12 @@ async def chat(req: ChatRequest):
             "messages": llm_messages,
             "stream": False,
             "options": {
-                "temperature": 0.75,
-                "num_predict": 512,
+                "temperature": 0.7,
+                "num_predict": 300,
                 "num_ctx": 4096,
+                "top_k": 40,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1,
             },
         }
         ollama_resp = http_requests.post(
@@ -469,6 +585,8 @@ async def chat(req: ChatRequest):
     # ── Parse assessment tag + therapist offer tag ─────────────────────────────────
     clean_response, llm_tag            = parse_assessment_tag(raw_response)
     clean_response, therapist_offered_now = parse_therapist_offer_tag(clean_response)
+    # Strip any (Note: ...) or (Note - ...) meta-commentary the LLM leaks
+    clean_response = re.sub(r'\s*\(Note[:\-—].*?\)', '', clean_response, flags=re.IGNORECASE | re.DOTALL).strip()
     if therapist_offered_now:
         sess["therapist_offered"] = True
 
@@ -559,7 +677,9 @@ async def chat(req: ChatRequest):
         print(f"              + {extras}")
     print(f"  CRISIS      : {'YES [!]' if crisis_now else 'no'}")
     print(sep)
-    print(f"  CRITICALITY : {final_label or '(warmup)'}  |  score={final_score or 0:.2f}  |  RAG={rag}")
+    rag_status = f"USED (decision={rag})" if rag_fired else f"NOT USED (decision={rag})"
+    print(f"  CRITICALITY : {final_label or '(warmup)'}  |  score={final_score or 0:.2f}")
+    print(f"  RAG         : {rag_status}")
     print(sep)
     print(f"  BOT   : {clean_response[:120]}{'...' if len(clean_response) > 120 else ''}")
     print(f"{bar}\n")
@@ -582,6 +702,17 @@ async def chat(req: ChatRequest):
         if email_ok:
             sess["crisis_email_sent"] = True
 
+    # ── Therapist contact prompt (after 2 MEDIUM RAG uses) ─────────────────
+    ask_therapist = (
+        not crisis_now
+        and final_label == "MEDIUM"
+        and sess["rag_medium_count"] >= 2
+        and not sess["therapist_offered"]
+    )
+    if ask_therapist:
+        sess["therapist_offered"] = True
+        print(f"[THERAPIST] Prompting therapist contact for session {req.session_id[:8]}", flush=True)
+
     return ChatResponse(
         response           = clean_response,
         turn               = turn,
@@ -592,6 +723,7 @@ async def chat(req: ChatRequest):
         danger             = crisis_now,
         alert_sent         = alert_fired,
         therapist_offered  = therapist_offered_now,
+        ask_therapist_contact = ask_therapist,
     )
   except HTTPException:
     raise
@@ -652,10 +784,16 @@ async def request_therapist(req: TherapistRequest):
     if col is not None:
         col.update_one({"_id": req.session_id}, {"$set": update})
     # also mark in-memory session if still alive
+    recent_turns = []
     if req.session_id in sessions:
         sessions[req.session_id]["therapist_request"] = update["therapist_request"]
+        recent_turns = sessions[req.session_id].get("turns_history", [])
+
+    # Send therapist notification email
+    send_therapist_email(req.session_id, req.migrate_chat, recent_turns)
+
     print(f"[ASTRAVA] Therapist request for session {req.session_id[:8]} | "
-          f"email={req.email} pref={req.preference} migrate={req.migrate_chat}")
+          f"migrate={req.migrate_chat}")
     return {"queued": True}
 
 
@@ -668,3 +806,30 @@ async def health():
     except Exception:
         pass
     return {"status": "ok", "model_loaded": inference_engine is not None, "mongo": mongo_ok}
+
+
+# ── TTS proxy (for languages without native browser voice) ────────────────────
+from fastapi.responses import Response
+from urllib.parse import quote
+
+ALLOWED_TTS_LANGS = {"kn", "hi", "en", "ta", "te", "ml", "mr", "bn", "gu", "pa"}
+
+@app.get("/api/tts")
+async def tts_proxy(text: str, lang: str = "kn"):
+    if lang not in ALLOWED_TTS_LANGS:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+    if not text or len(text) > 200:
+        raise HTTPException(status_code=400, detail="Text must be 1-200 characters")
+
+    encoded = quote(text)
+    url = (
+        f"https://translate.google.com/translate_tts"
+        f"?ie=UTF-8&client=tw-ob&tl={lang}&q={encoded}"
+    )
+    try:
+        resp = http_requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if resp.status_code != 200 or not resp.content:
+            raise HTTPException(status_code=502, detail="Google TTS returned an error")
+        return Response(content=resp.content, media_type="audio/mpeg")
+    except http_requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"TTS fetch failed: {e}")
