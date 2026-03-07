@@ -32,68 +32,7 @@ Many people suffering from emotional distress, depression, or crisis-level menta
 | **🧠 Persistent Memory** | Tracks emotional patterns and triggers across sessions using Supermemory.ai |
 | **🆘 Crisis Escalation** | Displays location-based helpline numbers and human callback options for high-risk situations |
 
----
 
-## 🏗️ Architecture
-
-```mermaid
-flowchart TB
-    subgraph CLIENT["🖥️ Frontend — React (Vite)"]
-        UI[Chat Interface]
-        LOC[Location Access Module]
-        ESC[Crisis Escalation UI]
-    end
-
-    subgraph SERVER["⚙️ Backend — Node.js / Express"]
-        API[REST API Gateway]
-        AUTH[Auth & Session Manager]
-        ORCH[Orchestrator Controller]
-        WS[WebSocket Handler]
-    end
-
-    subgraph PYTHON["🧠 Python ML Engine — FastAPI"]
-        direction TB
-        subgraph PREPROCESS["Preprocessing Layer"]
-            TOK[Tokenization & Cleaning]
-            EMB[Embedding Generation]
-        end
-        subgraph MODELS["ML Model Layer"]
-            M1["Emotion Model\n(GoEmotions — 27 labels)"]
-            M2["Stress Model\n(Dreaddit — binary)"]
-            M3["Depression Model\n(Reddit — binary)"]
-        end
-        SCORE[Score Aggregator & Risk Classifier]
-        subgraph RAG["RAG Layer — FAISS"]
-            IDX["FAISS Index Store\n(CBT, Breathing, Crisis, Coping)"]
-            RET[Retriever — Top-3 Passages]
-        end
-    end
-
-    subgraph EXTERNAL["☁️ External Services"]
-        LLM["LLM API\n(Gemini / OpenAI)"]
-        SMEM["Supermemory.ai\n(Persistent User Memory)"]
-        DB["MongoDB Atlas"]
-    end
-
-    UI -- user message --> API
-    LOC -- geolocation --> API
-    API --> AUTH
-    AUTH --> ORCH
-    ORCH -- raw text --> TOK
-    TOK --> EMB
-    EMB --> M1 & M2 & M3
-    M1 & M2 & M3 --> SCORE
-    SCORE -- risk_level + scores --> ORCH
-    ORCH -- query + emotional state --> RET
-    RET -- top-3 passages --> ORCH
-    ORCH -- context bundle --> LLM
-    ORCH <--> SMEM
-    LLM -- generated response --> ORCH
-    ORCH -- response + risk flag --> WS
-    WS -- real-time message --> UI
-    SCORE -- HIGH RISK --> ESC
-    ORCH --> DB
-```
 
 ### How It Works
 
